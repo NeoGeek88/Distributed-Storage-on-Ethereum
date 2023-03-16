@@ -4,8 +4,11 @@ pragma solidity ^0.8.4;
 // provide _msgSender() and _msgData
 import "@openzeppelin/contracts/utils/Context.sol";
 
-// provide _owner, 
+// provide _owner
 import "@openzeppelin/contracts/access/Ownable.sol";
+
+// provide MerkleProof
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 contract DS is Context, Ownable {
     
@@ -69,7 +72,8 @@ contract DS is Context, Ownable {
     /*
      * Retrive single file information from owner's file list. (only file owner is allowed to execute this function).
      */
-    function getFile(string memory _rootHash) public view isFileOwner(_rootHash) returns(File memory) {
+    function getFile(string memory _rootHash) public view returns(File memory) {
+        require(_fileList[_rootHash].owner == _msgSender(), "You don't have access to this file");
         return _fileList[_rootHash];
     }
 
@@ -84,10 +88,6 @@ contract DS is Context, Ownable {
         }
         delete _fileList[_rootHash];
         return true;
-    }
-
-    function checkFileMapping() public view returns (string[] memory) {
-        return _fileMapping[_msgSender()];
     }
 
     function checkFileList(string memory _rootHash) public view returns (File memory) {
@@ -133,7 +133,7 @@ contract DS is Context, Ownable {
      * Modifier to determine if the address is the node owner.
      */
     modifier isNodeOwner(string memory _nodeId) {
-        require(_nodeList[_nodeId].owner == _msgSender(), "You don't have access to this file");
+        require(_nodeList[_nodeId].owner == _msgSender(), "You don't have access to this node");
         _;
     }
 
@@ -167,7 +167,8 @@ contract DS is Context, Ownable {
     /*
      * Retrive single file information from owner's file list. (only file owner is allowed to execute this function).
      */
-    function getNode(string memory _nodeId) public view isNodeOwner(_nodeId) returns(Node memory) {
+    function getNode(string memory _nodeId) public view returns(Node memory) {
+        require(_nodeList[_nodeId].owner == _msgSender(), "You don't have access to this node");
         return _nodeList[_nodeId];
     }
 
@@ -182,10 +183,6 @@ contract DS is Context, Ownable {
         }
         delete _nodeList[_nodeId];
         return true;
-    }
-
-    function checkNodeMapping() public view returns (string[] memory) {
-        return _nodeMapping[_msgSender()];
     }
 
     function checkNodeList(string memory _nodeId) public view returns (Node memory) {
