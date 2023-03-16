@@ -41,13 +41,15 @@ contract DS is Context, Ownable {
     
     // Mapping for file owner to all its files. 
     mapping(address => string[]) private _fileMapping;
+
+    // mapping the root hash of a file to its metadata.
     mapping(string => File) private _fileList;
 
     /**
      * Modifier to determine if the address is the file owner. // no need maybe
      */
     modifier isFileOwner(string memory _rootHash) {
-        require(_fileMapping[_msgSender()].length != 0, "You don't have access to this file");
+        require(_fileList[_rootHash].owner == _msgSender(), "You don't have access to this file");
         _;
     }
 
@@ -68,7 +70,7 @@ contract DS is Context, Ownable {
     }
 
     /*
-     * Retrieve all files owned by this address and return. 
+     * Retrieve information of all files owned by this address and return. 
      */
     function listFiles() public view returns(File[] memory) {
         File memory file;
@@ -81,7 +83,7 @@ contract DS is Context, Ownable {
     }
 
     /*
-     * Download single file from owner's file list. (only file owner is allowed to execute this function).
+     * Retrive single file information from owner's file list. (only file owner is allowed to execute this function).
      */
     function getFile(string memory _rootHash) public view isFileOwner(_rootHash) returns(File memory) {
         return _fileList[_rootHash];
@@ -100,6 +102,9 @@ contract DS is Context, Ownable {
         return true;
     }
 
+    /*
+     * Util function to delete a value at 'index' from an array.
+     */
     function deleteFileMappingByIndex(uint index) private {
         require(index < _fileMapping[_msgSender()].length, "Index out of bounds");
         
