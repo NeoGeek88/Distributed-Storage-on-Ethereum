@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract DS is Context, Ownable {
     
+    // File chunk structure, used inside the File structure.
     struct FileChunk{
         string chunkHash;
         string nodeId;
@@ -22,31 +23,14 @@ contract DS is Context, Ownable {
         uint256 fileChunkCount;
         FileChunk[] fileChunks;
     }
-
-    enum protocol{
-        TCP,
-        UDP,
-        OTHER
-    }
-
-    struct Node{
-        string nodeId;
-        string ipAddress;
-        string netAddress;
-        protocol protocol;
-        uint256 port;
-        address owner;
-    }
-
     
     // Mapping for file owner to all its files. 
     mapping(address => string[]) private _fileMapping;
-
-    // mapping the root hash of a file to its metadata.
+    // Mapping the root hash of a file to its metadata.
     mapping(string => File) private _fileList;
 
     /**
-     * Modifier to determine if the address is the file owner. // no need maybe
+     * Modifier to determine if the address is the file owner.
      */
     modifier isFileOwner(string memory _rootHash) {
         require(_fileList[_rootHash].owner == _msgSender(), "You don't have access to this file");
@@ -102,6 +86,14 @@ contract DS is Context, Ownable {
         return true;
     }
 
+    function checkFileMapping() public view returns (string[] memory) {
+        return _fileMapping[_msgSender()];
+    }
+
+    function checkFileList(string memory _rootHash) public view returns (File memory) {
+        return _fileList[_rootHash];
+    }
+
     /*
      * Util function to delete a value at 'index' from an array.
      */
@@ -113,5 +105,103 @@ contract DS is Context, Ownable {
         }
         
         _fileMapping[_msgSender()].pop();
+    }
+
+    // a set of possible porotocol type.
+    enum protocol{
+        TCP,
+        UDP,
+        OTHER
+    }
+
+    // Node information structure.
+    struct Node{
+        string nodeId;
+        string ipAddress;
+        string netAddress;
+        protocol protocol;
+        uint256 port;
+        address owner;
+    }
+
+    // Mapping for node owner to all its nodes.
+    mapping(address => string[]) private _nodeMapping;
+    // Mapping the node ID to its information.
+    mapping(string => Node) private _nodeList;
+
+    /**
+     * Modifier to determine if the address is the node owner.
+     */
+    modifier isNodeOwner(string memory _nodeId) {
+        require(_nodeList[_nodeId].owner == _msgSender(), "You don't have access to this file");
+        _;
+    }
+
+    /*
+     * Add new file and associate it with the owner via mapping (everyone can execute this function).
+     */
+    function addNode(string memory _nodeId, string memory _ipAddress, string memory _netAddress, protocol _protocol, uint256 _port) public returns(bool) {
+        _nodeList[_nodeId].owner = _msgSender();
+        _nodeList[_nodeId].nodeId = _nodeId;
+        _nodeList[_nodeId].ipAddress = _ipAddress;
+        _nodeList[_nodeId].netAddress = _netAddress;
+        _nodeList[_nodeId].protocol = _protocol;
+        _nodeList[_nodeId].port = _port;
+        _nodeMapping[_msgSender()].push(_nodeId);
+        return true;
+    }
+
+    /*
+     * Retrieve information of all files owned by this address and return. 
+     */
+    function listNodes() public view returns(Node[] memory) {
+        Node memory node;
+        Node[] memory nodes = new Node[](_nodeMapping[_msgSender()].length);
+        for (uint i=0; i<_nodeMapping[_msgSender()].length; i++) {
+            node = _nodeList[_nodeMapping[_msgSender()][i]];
+            nodes[i] = node;
+        }
+        return nodes;
+    }
+
+    /*
+     * Retrive single file information from owner's file list. (only file owner is allowed to execute this function).
+     */
+    function getNode(string memory _nodeId) public view isNodeOwner(_nodeId) returns(Node memory) {
+        return _nodeList[_nodeId];
+    }
+
+    function removeNode(string memory _nodeId) public isNodeOwner(_nodeId) returns(bool) {
+        for (uint i = 0; i < _nodeMapping[_msgSender()].length; i++) {
+            bytes32 storageHash = keccak256(abi.encodePacked(_nodeMapping[_msgSender()][i]));
+            bytes32 memoryHash = keccak256(abi.encodePacked(_nodeId));
+            if (storageHash == memoryHash) {
+                deleteNodeMappingByIndex(i);
+                break;
+            }
+        }
+        delete _nodeList[_nodeId];
+        return true;
+    }
+
+    function checkNodeMapping() public view returns (string[] memory) {
+        return _nodeMapping[_msgSender()];
+    }
+
+    function checkNodeList(string memory _nodeId) public view returns (Node memory) {
+        return _nodeList[_nodeId];
+    }
+
+    /*
+     * Util function to delete a value at 'index' from an array.
+     */
+    function deleteNodeMappingByIndex(uint index) private {
+        require(index < _nodeMapping[_msgSender()].length, "Index out of bounds");
+        
+        for (uint i = index; i < _nodeMapping[_msgSender()].length-1; i++) {
+            _nodeMapping[_msgSender()][i] = _nodeMapping[_msgSender()][i+1];
+        }
+        
+        _nodeMapping[_msgSender()].pop();
     }
 }
