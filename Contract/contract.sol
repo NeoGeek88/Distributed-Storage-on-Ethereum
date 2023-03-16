@@ -20,6 +20,7 @@ contract DS is Context, Ownable {
         uint256 fileSize;
         string rootHash;
         uint256 fileChunkCount;
+        FileChunk[] fileChunks;
     }
 
     enum protocol{
@@ -53,16 +54,15 @@ contract DS is Context, Ownable {
     /*
      * Add new file and associate it with the owner via mapping (everyone can execute this function).
      */
-    function addFile(string memory _fileName, uint256 _fileSize, string memory _rootHash) public returns(bool) {
-        File memory file;
-        file.owner = _msgSender();
-        file.fileName = _fileName;
-        file.fileSize = _fileSize;
-        file.fileChunkCount = 0;//_fileChunks.length;
-        //for (uint i=0; i<_fileChunks.length; i++){
-            //file.fileChunks.push(_fileChunks[i]);
-        //}
-        _fileList[_rootHash] = file;
+    function addFile(string memory _fileName, uint256 _fileSize, string memory _rootHash, FileChunk[] memory _fileChunks) public returns(bool) {
+        _fileList[_rootHash].owner = _msgSender();
+        _fileList[_rootHash].fileName = _fileName;
+        _fileList[_rootHash].fileSize = _fileSize;
+        _fileList[_rootHash].rootHash = _rootHash;
+        _fileList[_rootHash].fileChunkCount = _fileChunks.length;
+        for (uint i=0; i<_fileChunks.length; i++){
+            _fileList[_rootHash].fileChunks.push(_fileChunks[i]);
+        }
         _fileMapping[_msgSender()].push(_rootHash);
         return true;
     }
@@ -71,9 +71,11 @@ contract DS is Context, Ownable {
      * Retrieve all files owned by this address and return. 
      */
     function listFiles() public view returns(File[] memory) {
-        File[] memory files;
+        File memory file;
+        File[] memory files = new File[](_fileMapping[_msgSender()].length);
         for (uint i=0; i<_fileMapping[_msgSender()].length; i++) {
-            files[i] = _fileList[_fileMapping[_msgSender()][i]];
+            file = _fileList[_fileMapping[_msgSender()][i]];
+            files[i] = file;
         }
         return files;
     }
@@ -81,7 +83,7 @@ contract DS is Context, Ownable {
     /*
      * Download single file from owner's file list. (only file owner is allowed to execute this function).
      */
-    function getFile(string memory _rootHash) public isFileOwner(_rootHash) returns(File memory) {
+    function getFile(string memory _rootHash) public view isFileOwner(_rootHash) returns(File memory) {
         return _fileList[_rootHash];
     }
 
