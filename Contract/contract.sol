@@ -20,7 +20,7 @@ contract DS is Context, Ownable {
     // File metadata structure.
     struct File{
         address owner;
- 		string fileName;
+        string fileName;
         uint256 fileSize;
         bytes32 rootHash;
         uint256 fileChunkCount;
