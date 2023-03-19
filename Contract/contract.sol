@@ -183,7 +183,7 @@ contract DS is Context, Ownable {
         return true;
     }
 
-    function checkNodeList(string memory _nodeId) public view returns (Node memory) {
+    function checkNodeList(string memory _nodeId) public view onlyOwner() returns (Node memory) {
         return _nodeList[_nodeId];
     }
 
