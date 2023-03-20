@@ -8,7 +8,7 @@ import "./Context.sol";
 import "./Ownable.sol";
 
 // provide MerkleProof
-// import "./MerkleProof.sol";
+import "./MerkleProof.sol";
 
 contract DS is Context, Ownable {
     
@@ -43,7 +43,12 @@ contract DS is Context, Ownable {
     /*
      * Add new file and associate it with the owner via mapping (everyone can execute this function).
      */
-    function addFile(string memory _fileName, uint256 _fileSize, bytes32 _rootHash, FileChunk[] memory _fileChunks) public returns(bool) {
+    function addFile(
+        string memory _fileName, 
+        uint256 _fileSize, 
+        bytes32 _rootHash, 
+        FileChunk[] memory _fileChunks
+    ) public returns(bool) {
         _fileList[_rootHash].owner = _msgSender();
         _fileList[_rootHash].fileName = _fileName;
         _fileList[_rootHash].fileSize = _fileSize;
@@ -53,6 +58,25 @@ contract DS is Context, Ownable {
             _fileList[_rootHash].fileChunks.push(_fileChunks[i]);
         }
         _fileMapping[_msgSender()].push(_rootHash);
+        return true;
+    }
+
+    /*
+     * Modify the chunk data and file name for an existing file.
+     */
+    function updateFile(
+        bytes32 _rootHash, 
+        string memory _newFileName, 
+        FileChunk[] memory _updatedFileChunks
+    ) public isFileOwner(_rootHash) returns(bool) {
+        _fileList[_rootHash].fileName = _newFileName;
+        for (uint256 i=0; i<_updatedFileChunks.length; i++){
+            for (uint256 j=0; j<_fileList[_rootHash].fileChunks.length; j++){
+                if (_fileList[_rootHash].fileChunks[j].chunkHash == _updatedFileChunks[i].chunkHash){
+                    _fileList[_rootHash].fileChunks[j].nodeId = _updatedFileChunks[i].nodeId;
+                }
+            }
+        }
         return true;
     }
 
@@ -89,6 +113,9 @@ contract DS is Context, Ownable {
         return true;
     }
 
+    /*
+     * Contract owner only debug function.
+     */
     function checkFileList(bytes32 _rootHash) public view onlyOwner() returns (File memory) {
         return _fileList[_rootHash];
     }
@@ -136,10 +163,21 @@ contract DS is Context, Ownable {
         _;
     }
 
+    modifier hasActiveNode() {
+        require(_nodeMapping[_msgSender()].length > 0, "You are not allowed to call this function");
+        _;
+    }
+
     /*
      * Add new file and associate it with the owner via mapping (everyone can execute this function).
      */
-    function addNode(string memory _nodeId, string memory _ipAddress, string memory _netAddress, protocol _protocol, uint256 _port) public returns(bool) {
+    function addNode(
+        string memory _nodeId, 
+        string memory _ipAddress, 
+        string memory _netAddress, 
+        protocol _protocol, 
+        uint256 _port
+    ) public returns(bool) {
         _nodeList[_nodeId].owner = _msgSender();
         _nodeList[_nodeId].nodeId = _nodeId;
         _nodeList[_nodeId].ipAddress = _ipAddress;
@@ -147,6 +185,23 @@ contract DS is Context, Ownable {
         _nodeList[_nodeId].protocol = _protocol;
         _nodeList[_nodeId].port = _port;
         _nodeMapping[_msgSender()].push(_nodeId);
+        return true;
+    }
+
+    /*
+     * Update existing node information.
+     */
+    function updateNode(
+        string memory _nodeId, 
+        string memory _ipAddress, 
+        string memory _netAddress, 
+        protocol _protocol, 
+        uint256 _port
+    ) public isNodeOwner(_nodeId) returns(bool) {
+        _nodeList[_nodeId].ipAddress = _ipAddress;
+        _nodeList[_nodeId].netAddress = _netAddress;
+        _nodeList[_nodeId].protocol = _protocol;
+        _nodeList[_nodeId].port = _port;
         return true;
     }
 
@@ -183,6 +238,9 @@ contract DS is Context, Ownable {
         return true;
     }
 
+    /*
+     * Contract owner only debug function.
+     */
     function checkNodeList(string memory _nodeId) public view onlyOwner() returns (Node memory) {
         return _nodeList[_nodeId];
     }
@@ -190,7 +248,7 @@ contract DS is Context, Ownable {
     /*
      * Util function to delete a value at 'index' from an array.
      */
-    function deleteNodeMappingByIndex(uint index) private {
+    function deleteNodeMappingByIndex(uint256 index) private {
         require(index < _nodeMapping[_msgSender()].length, "Index out of bounds");
         
         for (uint256 i = index; i < _nodeMapping[_msgSender()].length-1; i++) {
@@ -198,5 +256,29 @@ contract DS is Context, Ownable {
         }
         
         _nodeMapping[_msgSender()].pop();
+    }
+
+
+    function performMerkleProof(
+        bytes32[] memory proof, 
+        bytes32 root, 
+        bytes32 leaf, 
+        uint256 index
+    ) public view hasActiveNode() returns (bool) {
+        return MerkleProof.verify(proof, root, leaf, index);
+    }
+
+    function kickNode(string memory _nodeId) public hasActiveNode() returns (bool) {
+        address owner = _nodeList[_nodeId].owner;
+        for (uint256 i = 0; i < _nodeMapping[owner].length; i++) {
+            bytes32 storageHash = keccak256(abi.encodePacked(_nodeMapping[owner][i]));
+            bytes32 memoryHash = keccak256(abi.encodePacked(_nodeId));
+            if (storageHash == memoryHash) {
+                deleteNodeMappingByIndex(i);
+                break;
+            }
+        }
+        delete _nodeList[_nodeId];
+        return true;
     }
 }
