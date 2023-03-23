@@ -4,6 +4,7 @@ from eth_account.messages import encode_defunct
 from dotenv import load_dotenv
 import os
 import json
+from ..Crypto import MerkleTree
 
 class Connector:
     def __init__(self):
@@ -462,6 +463,25 @@ class Connector:
         receipt = self.generate_receipt(tx_receipt)
         print(receipt)
         return receipt
+    
+    def merkle_proof(self, file_json, index, leaf_hash):
+        '''
+        INPUT: file details including file name, file size, file root hash, file chunks info,
+               and chunk index and the leaf hash to be proofed
+        RETURN: boolean value inform whether the proof provided matches the root hash or not. 
+        '''
+        file_info = self.file_preprocess(file_json)
+        mt = MerkleTree(file_info["file_chunks"])
+        proof = mt.build_proof(index, len(file_info["file_chunks"]))
+        root_hash = file_info["root_hash"]
+        args = [proof, root_hash, leaf_hash, index]
+
+        raw_proof_result = self.contract.functions.getFile(args).call({
+            "from": os.getenv("WALLET_PUBLIC_KEY")
+        })
+        
+        proof_result = json.dumps(raw_proof_result)
+        return proof_result
 
 
 
