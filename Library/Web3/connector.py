@@ -82,8 +82,9 @@ class Connector:
                 try:
                     file_chunks_raw = file_details["file_chunks"]
                     for chunk_obj in file_chunks_raw:
-                        for k, v in chunk_obj.items():
-                            file_chunks.append([k,v])
+                        chunk_hash = chunk_obj["chunk_hash"]
+                        node_id = chunk_obj["node_id"]
+                        file_chunks.append([chunk_hash, node_id])
                 except:
                     return {"args": None, "err": "ERROR WHEN PARSING THE FILE CHUNK DETAILS."}
             else: 
@@ -333,9 +334,8 @@ class Connector:
 
     def remove_file(self, root_hash):  
         '''
-        INPUT: file root hash.
-        RETURN: transaction receipt with status (upload succeed or error code & msg). 
-        # TODO: consider transaction not included in the chain
+        Input: File root hash.
+        Output: Transaction receipt with information such as transaction status, or error message string if any.
         '''
         # TODO: implement check hash function and apply here (refer line 261)
         
