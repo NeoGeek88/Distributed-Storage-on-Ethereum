@@ -1,0 +1,15 @@
+"""
+Creater : Yoyo Wang
+Create Time : March 22 2023
+Last Modify Time : March 22 2023
+--------------------------------------------------------------
+File Owner | Authorized User | File uploader | File downloader
+--------------------------------------------------------------
+Main Functionality:
+File Uploader (Authorized Users or File Owner):
+	Generate a symmetric key (e.g., an AES key).
+	Encrypt the file using the symmetric key.
+	Encrypt the symmetric key with the public key of the file owner and each authorized user.
+	Upload the encrypted file along with the encrypted symmetric keys.
+"""
+

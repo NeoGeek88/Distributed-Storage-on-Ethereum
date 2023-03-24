@@ -51,7 +51,7 @@ class FileHandler():
         self.chunkSize = 262144
         self.__generateKeyPair()
         #self.crs = CRSErasureCode(data_size=262144, parity_size=2)
-        self.ecc_symbols = 2  # Number of error correction symbols
+        self.ecc_symbols = 30  # Number of error correction symbols
         self.rs = RSCodec(self.ecc_symbols)
 
     def uploadFile(self, local_file_path):
@@ -270,9 +270,11 @@ class FileHandler():
     
     def RSenc(self, encChunkList):
         encoded_data = []
+        print("Original chunk list has size -- ", len(encChunkList))
         for chunk in encChunkList:
             encoded_chunk = self.rs.encode(chunk)
             encoded_data.append(encoded_chunk)
+        print("Encoded chunk list has size -- ", len(encoded_data))
         return encoded_data
 
     def RSdec(self, rsencChunkList):
