@@ -32,7 +32,7 @@ from cryptography.hazmat.backends import default_backend
 import csv
 import json
 from io import BytesIO
-from PIL import Image
+#from PIL import Image
 import zipfile
 from pyfinite import ffield
 import numpy as np

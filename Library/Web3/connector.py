@@ -4,7 +4,8 @@ from eth_account.messages import encode_defunct
 from dotenv import load_dotenv
 import os
 import json
-from ..Crypto import MerkleTree
+#from ..Crypto import MerkleTree
+import MerkleTree
 
 class Connector:
     def __init__(self):
@@ -16,7 +17,7 @@ class Connector:
         self.w3 = Web3(Web3.HTTPProvider(os.getenv("INFURA_NODE_ENDPOINT")))
 
         # Load the contract ABI and contract address.
-        with open('./Contract/contract_abi.json', 'r') as f: 
+        with open('E:\programming\courses\cmpt456\Distributed-Storage-on-Ethereum\Contract\contract_abi.json', 'r') as f:
             contract_abi = json.load(f)
         
         contract_address = os.getenv("CONTRACT_ADDRESS")
