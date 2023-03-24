@@ -75,26 +75,42 @@ class TestFileHandler(unittest.TestCase):
         self.assertEqual(sample_chunk, dec_enc_chunk)
         print("AES encryption/decryption implemented correctly under the spliting/combination check, Also AES key is successfully protected through Assymetric encryption!")
 
-    def introduce_errors(self,encoded_chunks, num_errors):
+    # def introduce_errors(self,encoded_chunks, num_errors):
+    #     corrupted_chunks = []
+    #     for chunk in encoded_chunks:
+    #         corrupted_chunk = bytearray(chunk)
+    #         for i in range(num_errors):
+    #             error_pos = random.randint(0, len(corrupted_chunk) - 1)
+    #             error_val = random.randint(1, 255)  # Exclude 0 to ensure the value is actually changed
+    #             corrupted_chunk[error_pos] ^= error_val
+    #         print(corrupted_chunk)
+    #         corrupted_chunks.append(bytes(corrupted_chunk))
+
+    #     return corrupted_chunks
+    def introduce_errors(self, encoded_chunks, error_prob=0.1, drop_prob=0.1):
         corrupted_chunks = []
         for chunk in encoded_chunks:
+            # Drop the chunk with a specified probability
+            if random.random() < drop_prob:
+                print("drop")
+            # Introduce errors in the chunk with a specified probability
             corrupted_chunk = bytearray(chunk)
-            for i in range(num_errors):
-                error_pos = random.randint(0, len(corrupted_chunk) - 1)
-                error_val = random.randint(1, 255)  # Exclude 0 to ensure the value is actually changed
-                corrupted_chunk[error_pos] ^= error_val
-            print(corrupted_chunk)
+            for i in range(len(corrupted_chunk)):
+                if random.random() < error_prob:
+                    corrupted_chunk[i] = random.randint(0, 255)
             corrupted_chunks.append(bytes(corrupted_chunk))
         return corrupted_chunks
 
     def testRSed(self):
-        num_errors = 1  # Introduce errors that can be corrected by the RS codec
-        chunks = [b'hello', b'world', b'python', b'rocks']
+        num_errors = 2  # Introduce errors that can be corrected by the RS codec
+        chunks = [b'hello', b'world', b'python', b'rocks', b'life', b'hard']
         encoded_chunks = self.file_handler.RSenc(chunks)
-        print("encoded_chunks", encoded_chunks)
-        corrupted_chunks = self.introduce_errors(encoded_chunks, num_errors)
+        #print("the original chunk list has size -- ", len(chunks), chunks)
+        #print("the redundant chunk list has size -- ", len(encoded_chunks))
+       # print("encoded_chunks", encoded_chunks)
+        
+        corrupted_chunks = self.introduce_errors(encoded_chunks)
         print("Corrupted Chunks:", corrupted_chunks)
-
         # Attempt to decode the corrupted chunks
         recovered_chunks_all = self.file_handler.RSdec(corrupted_chunks)
         recovered_chunks = [bytes(chunk[0]) for chunk in recovered_chunks_all]
