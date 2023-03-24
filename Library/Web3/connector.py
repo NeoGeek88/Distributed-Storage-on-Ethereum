@@ -2,6 +2,7 @@ from web3 import Web3
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from dotenv import load_dotenv
+from uuid import UUID
 import os
 import json
 #from MerkleTree import MerkleTree
@@ -40,6 +41,18 @@ class Connector:
         except ValueError:
             return {"is_valid": False, "root_hash": "CAN NOT CONVERT PROVIDED ROOT HASH STRING TO HEX."}
 
+    
+    def is_valid_uuid(self, uuid_value):
+        '''
+        Input: UUID to test.
+        Output: Return True if the UUID is valid, otherwise return false.
+        '''
+        try:
+            UUID(str(uuid_value))
+            return True
+        except ValueError:
+            return False
+
 
     def file_preprocess(self, file_json):
         '''
@@ -62,15 +75,12 @@ class Connector:
         # File size should be provided and should be integer (or should able to convert to integer).
         if ("file_size" in file_details) and (file_details["file_size"] is not None):
             if file_details["file_size"]:
-                if isinstance(file_details["file_size"], int):
-                    file_size = file_details["file_size"]
-                else:
-                    try:
-                        file_size = int(file_details["file_size"])
-                        if file_size < 0:
-                            return {"args": None, "err": "FILE SIZE SHOULD NOT LESS THAN 0 BYTE."}
-                    except ValueError:
-                        return {"args": None, "err": "FILE SIZE SHOULD BE INTEGER."}
+                try:
+                    file_size = int(file_details["file_size"])
+                    if file_size < 0:
+                        return {"args": None, "err": "FILE SIZE SHOULD NOT LESS THAN 0 BYTE."}
+                except ValueError:
+                    return {"args": None, "err": "FILE SIZE SHOULD BE INTEGER."}                
             else:
                 return {"args": None, "err": "FILE SIZE SHOULD NOT BE EMPTY."}
         else:
@@ -101,7 +111,7 @@ class Connector:
                 try:
                     file_chunks_raw = file_details["file_chunks"]
                     for chunk_obj in file_chunks_raw:
-                        chunk_hash = chunk_obj["chunk_hash"]
+                        chunk_hash = chunk_obj["chunk_hash"] # TODO: check!!!
                         node_id = chunk_obj["node_id"]
                         file_chunks.append([chunk_hash, node_id])
                 except:
@@ -129,63 +139,56 @@ class Connector:
         node_details = json.loads(node_json)
 
         # =========== NODE PRE-PRECESSING ===========
-        # Node ID should be provided and should not be empty string.
-        # TODO: check if node ID is a valid uuid!!!
+        # Node ID should be provided and should not be empty string and should be uuid.
         if ("node_id" in node_details) and (node_details["node_id"] is not None):
             if node_details["node_id"]:
-                node_id = node_details["node_id"] 
+                if self.is_valid_uuid(node_details["node_id"]):
+                    node_id = node_details["node_id"]
+                else:
+                    return {"args": None, "err": "NODE ID IS NOT VALID UUID."}
             else: 
-                return "message: node ID should not be empty."
+                return {"args": None, "err": "NODE ID SHOULD NOT BE EMPTY."}
         else:
-            return "message: missing node ID info."
+            return {"args": None, "err": "MISSING NODE ID INFORMATION."}
         
         # IP address should be provided and should not be empty string.
         if ("ip_address" in node_details) and (node_details["ip_address"] is not None):
             if node_details["ip_address"]:
                 ip_address = node_details["ip_address"] 
             else: 
-                return "message: IP address should not be empty."
+                return {"args": None, "err": "IP ADDRESS SHOULD NOT BE EMPTY."}
         else:
-            return "message: missing IP address info."
+            return {"args": None, "err": "MISSING IP ADDRESS INFORMATION."}
         
         # Net address should be provided, but it can be empty.
         if ("net_address" in node_details) and (node_details["net_address"] is not None):
-            if node_details["net_address"]:
-                net_address = node_details["net_address"] 
-            else: 
-                net_address = ""
+            net_address = node_details["net_address"] if node_details["net_address"] else ""
         else:
-            return "message: missing net address info."
+            return {"args": None, "err": "MISSING NET ADDRESS INFORMATION."}
         
-        # Protocol must be one of 3 values, 0(TCP), 1(UDP) or 2(Others).
+        # Protocol must be one of 3 values: 0(TCP), 1(UDP) or 2(Others).
         if ("protocol" in node_details) and (node_details["protocol"] is not None):
             if node_details["protocol"] in range(3):
                 protocol = node_details["protocol"] 
             else: 
-                return "message: invalid protocol info (must be 0(TCP), 1(UDP) or 2(Others))."
+                return {"args": None, "err": " INVALID PROTOCOL INFORMATION (MUST BE 0[TCP], 1[UDP] or 2[OTHERS])."}
         else:
-            return "message: missing protocol info."
+            return {"args": None, "err": "MISSING PROTOCOL INFORMATION."}
 
         # Port number should be provided and should be integer (or should able to convert to integer).
-        # Port number must also less than 65535
+        # Port number range (1, 65535).
         if ("port" in node_details) and (node_details["port"] is not None):
             if node_details["port"]:
-                if isinstance(node_details["port"], int):
+                try:
+                    port = int(node_details["port"])
                     if port < 1 or port > 65535:
-                        return "message: port number should not less than 1 and should not bigger than 65535."
-                    else:
-                        port = node_details["port"]
-                else:
-                    try:
-                        port = int(node_details["port"])
-                        if port < 1 or port > 65535:
-                            return "message: port number should not less than 1 and should not bigger than 65535."
-                    except ValueError:
-                        return "message: port number should be intger."
+                        return {"args": None, "err": "PORT NUMBER SHOULD BE IN RANGE (1, 65535)."}
+                except ValueError:
+                    return {"args": None, "err": "PORT NUMBER SHOULD BE INTEGER."}
             else:
-                return "message: port number should not be empty."
+                return {"args": None, "err": "PORT NUMBER SHOULD NOT BE EMPTY."}
         else:
-            return "message: missing port number info."
+            return {"args": None, "err": "MISSING PORT NUMBER INFORMATION."}
 
         args = [
             node_id,
@@ -194,7 +197,7 @@ class Connector:
             protocol,
             port
         ]
-        return args
+        return {"args": args, "err": None}
 
 
     def generate_receipt(self, raw_receipt):
@@ -216,37 +219,6 @@ class Connector:
         return receipt
 
 
-    def list_file(self):
-        '''
-        Input: None
-        Output: The metadata of all files that current address owns.
-        '''
-        raw_list_file = self.contract.functions.listFiles().call({
-            "from": os.getenv("WALLET_PUBLIC_KEY")
-        })
-
-        list_file = []
-        for f in raw_list_file:
-            file = {}
-            file["owner"] = f[0]
-            file["file_name"] = f[1]
-            file["file_size"] = f[2]
-            file["root_hash"] = f[3].hex()
-            file["file_chunk_count"] = f[4]
-
-            file["file_chunks"] = []
-            for c in f[5]:
-                chunk = {}
-                chunk["chunk_hash"] = c[0].hex()
-                chunk["node_id"] = c[1]
-                file["file_chunks"].append(chunk)
-
-            list_file.append(file)
-
-        list_file_json = json.dumps(list_file)
-        return list_file_json
-
-
     def sign_transaction(self, func_name, func_args):
         '''
         Purpose: A generic function for signing a transaction (for write function).
@@ -263,19 +235,11 @@ class Connector:
 
         encoded_data = self.contract.encodeABI(fn_name=function_name, args=function_args)
 
-        #tx = self.contract.functions[function_name](*function_args).build_transaction({
-        #tx = self.contract.functions.build_transaction({
         tx = self.contract.functions[function_name](*function_args).build_transaction({
             "nonce": nonce,
             'gasPrice': gas_price,
             'from': os.getenv("WALLET_PUBLIC_KEY")   
         })
-        # "data": encoded_data,
-        # "myContract": self.contract,
-        # "encodedData" = myContract.encodeABI(fn_name='myFunctionName', args=['foo','bar'])
-
-        #"maxFeePerGas": self.w3.to_wei(250, 'gwei'),
-        #"maxPriorityFeePerGas": self.w3.to_wei(3, 'gwei'),
 
         tx['gas'] = self.w3.eth.estimate_gas(tx)
         private_key = os.getenv("WALLET_PRIVATE_KEY")
@@ -289,6 +253,37 @@ class Connector:
         receipt = self.generate_receipt(tx_receipt)
         return receipt
  
+
+    def list_file(self):
+            '''
+            Input: None
+            Output: The metadata of all files that current address owns.
+            '''
+            raw_list_file = self.contract.functions.listFiles().call({
+                "from": os.getenv("WALLET_PUBLIC_KEY")
+            })
+
+            list_file = []
+            for f in raw_list_file:
+                file = {}
+                file["owner"] = f[0]
+                file["file_name"] = f[1]
+                file["file_size"] = f[2]
+                file["root_hash"] = f[3].hex()
+                file["file_chunk_count"] = f[4]
+
+                file["file_chunks"] = []
+                for c in f[5]:
+                    chunk = {}
+                    chunk["chunk_hash"] = c[0].hex()
+                    chunk["node_id"] = c[1]
+                    file["file_chunks"].append(chunk)
+
+                list_file.append(file)
+
+            list_file_json = json.dumps(list_file)
+            return list_file_json
+
 
     def upload_file(self, file_json):  
         '''
@@ -418,6 +413,7 @@ class Connector:
         node_json = json.dumps(node)
         print(node_json) # del later
         return node_json
+        
 
     def add_node(self, node_json):  
         '''
@@ -501,19 +497,46 @@ class Connector:
 
 if __name__ == '__main__':
     conn = Connector()
-    
-    #receipt = conn.list_file()
 
-    #receipt = conn.retrieve_file("0x7f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6c")
+    # ============= FILE ============
 
-    #err = conn.root_hash_precheck("0x7f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6c")
-    receipt = conn.upload_file('{"file_name": "Iris2", "file_size": "131", "root_hash": "0x131c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d7b", "file_chunks": [{"chunk_hash":"0x131c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d7a", "node_id": "1"},{"chunk_hash":"0x131c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d1b", "node_id": "2"}]}')
+    # Retrieve all files:
+    # receipt = conn.list_file()
     
-    #err = conn.file_preprocess('{"file_name": "s", "file_size": "12", "root_hash": "0x7f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6c", "file_chunks": []}')
-    #receipt = conn.update_file('{"file_name": "Iris", "file_size": "31", "root_hash": "0x8f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6f", "file_chunks": [{"chunk_hash":"0x5f2c17a8d7e82fc0aefb7d9a03761d72bfe31f91879e63f1bc6b3a3d2f6b1d61", "node_id": "13"}]}')
+    # Upload file:
+    # receipt = conn.upload_file('{"file_name": "Cloud", "file_size": "100", "root_hash": "0x52f215a01392f27cb930d13954f402a798cb63b67fa88a3d3a9c3649af10dc8b", "file_chunks": [{"chunk_hash":"0xb99601d20e39c663a7e9d9ab57404de21b3f3b9137a01f765dfef41d75dc937c", "node_id": "1"},{"chunk_hash":"0x5808f6d31f38b0557f3e0d3c3a3ec1e0e57f0ee9b31d1ab2662b2f16b47b0565", "node_id": "2"}]}')
+    
+    # Get single file:
+    # receipt = conn.retrieve_file("0x7f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6c")
+
+    # Update exist file chunk - node information:
+    # receipt = conn.update_file('{"file_name": "Iris", "file_size": "31", "root_hash": "0x8f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6f", "file_chunks": [{"chunk_hash":"0x5f2c17a8d7e82fc0aefb7d9a03761d72bfe31f91879e63f1bc6b3a3d2f6b1d61", "node_id": "13"}]}')
+
+    # Remove specific file:
     #receipt = conn.remove_file(["0x8f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6f"])
 
+    # ============= NODE ============
+    # Check valid UUID:
+    # receipt = conn.is_valid_uuid("xx38d5e4-6f3e-45fe-8af5-e2d96213b3f0")
+
+    # Node info precheck:
+    receipt = conn.node_preprocess('{"node_id": "d0cfa1b4-4f9b-4bb8-bb24-16c86b15f135", "ip_address": "8.8.8.8", "net_address": "JK", "protocol": 0, "port": "2"}')
     print(receipt)
-    #conn.list_file()
-    # if file_details["file_name"]:
-      #      else: return "message: file ane should not be empty!"
+
+
+'''
+Valid UUID: 
+    5338d5e4-6f3e-45fe-8af5-e2d96213b3f0,
+    d0cfa1b4-4f9b-4bb8-bb24-16c86b15f135,
+    e46b3dc7-11f2-4b9c-8693-3eae76c03735,
+    913c8e8a-5c5a-435d-9dc5-30b8cc7c140e,
+
+
+Invalid UUID: xx38d5e4-6f3e-45fe-8af5-e2d96213b3f0
+
+
+Root hash pool:
+    0x52f215a01392f27cb930d13954f402a798cb63b67fa88a3d3a9c3649af10dc8b
+
+'''
+
