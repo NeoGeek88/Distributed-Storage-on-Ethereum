@@ -3,3 +3,4 @@
 
 # Environment variable
 .envignore
+.env 
