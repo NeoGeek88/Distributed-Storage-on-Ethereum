@@ -24,22 +24,22 @@ class Connector:
         self.contract = self.w3.eth.contract(address=contract_address, abi=contract_abi)
 
     
-    def root_hash_precheck(self, root_hash_raw):
+    def is_valid_hash(self, root_hash_raw):
         '''
-        Input: Root hash - the 32-byte hex string.
-        Output: If the root hash valid or not, return root hash value if valid or error if no valid.
+        Input: hash value - the 32-byte hex string.
+        Output: If the hash value valid or not, return hash value if valid or error if no valid.
         '''
         # File root hash should be provided and should be 32-byte hex string.
         if not root_hash_raw.startswith("0x"):
             root_hash_raw = "0x" + root_hash_raw
         if len(root_hash_raw) != 66:
-            return {"is_valid": False, "root_hash": "PROVIDED ROOT HASH STRING IS NOT 32-BYTE."}
+            return {"is_valid": False, "hash_value": "PROVIDED HASH STRING IS NOT 32-BYTE."}
         try:
             root_hash_int = int(root_hash_raw, 16)
             root_hash = hex(root_hash_int)
-            return {"is_valid": True, "root_hash": root_hash}
+            return {"is_valid": True, "hash_value": root_hash}
         except ValueError:
-            return {"is_valid": False, "root_hash": "CAN NOT CONVERT PROVIDED ROOT HASH STRING TO HEX."}
+            return {"is_valid": False, "hash_value": "CAN NOT CONVERT PROVIDED HASH STRING TO HEX."}
 
     
     def is_valid_uuid(self, uuid_value):
@@ -90,15 +90,11 @@ class Connector:
         if ("root_hash" in file_details) and (file_details["root_hash"] is not None):
             if file_details["root_hash"]:
                 root_hash_raw = file_details["root_hash"]
-                if not root_hash_raw.startswith("0x"):
-                    root_hash_raw = "0x" + root_hash_raw
-                if len(root_hash_raw) != 66:
-                    return {"args": None, "err": "PROVIDED ROOT HASH STRING IS NOT 32-BYTE."}
-                try:
-                    root_hash_int = int(root_hash_raw, 16)
-                    root_hash = hex(root_hash_int)
-                except ValueError:
-                    return {"args": None, "err": "CAN NOT CONVERT PROVIDED ROOT HASH STRING TO HEX."}
+                is_valid_hash = self.is_valid_hash(root_hash_raw)
+                if is_valid_hash["is_valid"]:
+                    root_hash = is_valid_hash["hash_value"]
+                else:
+                    return {"args": None, "err": is_valid_hash["hash_value"]}
             else: 
                 return {"args": None, "err": "FILE ROOT HASH SHOULD NOT BE EMPTY."}
         else:
@@ -111,8 +107,17 @@ class Connector:
                 try:
                     file_chunks_raw = file_details["file_chunks"]
                     for chunk_obj in file_chunks_raw:
-                        chunk_hash = chunk_obj["chunk_hash"] # TODO: check!!!
-                        node_id = chunk_obj["node_id"]
+                        is_valid_hash = self.is_valid_hash(chunk_obj["chunk_hash"])
+                        if is_valid_hash["is_valid"]:
+                            chunk_hash = chunk_obj["chunk_hash"]
+                        else: 
+                            return {"args": None, "err": is_valid_hash["hash_value"]}
+                        
+                        is_valid_uuid = self.is_valid_uuid(chunk_obj["node_id"])
+                        if is_valid_uuid:
+                            node_id = chunk_obj["node_id"]
+                        else: 
+                            return {"args": None, "err": "NODE ID IS NOT VALID UUID."}
                         file_chunks.append([chunk_hash, node_id])
                 except:
                     return {"args": None, "err": "ERROR WHEN PARSING THE FILE CHUNK DETAILS."}
@@ -504,7 +509,7 @@ if __name__ == '__main__':
     # receipt = conn.list_file()
     
     # Upload file:
-    # receipt = conn.upload_file('{"file_name": "Cloud", "file_size": "100", "root_hash": "0x52f215a01392f27cb930d13954f402a798cb63b67fa88a3d3a9c3649af10dc8b", "file_chunks": [{"chunk_hash":"0xb99601d20e39c663a7e9d9ab57404de21b3f3b9137a01f765dfef41d75dc937c", "node_id": "1"},{"chunk_hash":"0x5808f6d31f38b0557f3e0d3c3a3ec1e0e57f0ee9b31d1ab2662b2f16b47b0565", "node_id": "2"}]}')
+    receipt = conn.upload_file('{"file_name": "Cloud", "file_size": "100", "root_hash": "0x52f215a01392f27cb930d13954f402a798cb63b67fa88a3d3a9c3649af10dc8b", "file_chunks": [{"chunk_hash":"0x5808f6d31f38b0557f3e0d3c3a3ec1e0e57f0ee9b31d1ab2662b2f16b47b0565", "node_id": "5338d5e4-6f3e-45fe-8af5-e2d96213b3f0"},{"chunk_hash":"0x5f5bb5f5e0648b04988ec1dd0c157a90a79871a8c31bf170d94c33a7f62fb955", "node_id": "e46b3dc7-11f2-4b9c-8693-3eae76c03735"}]}')
     
     # Get single file:
     # receipt = conn.retrieve_file("0x7f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6c")
@@ -520,7 +525,7 @@ if __name__ == '__main__':
     # receipt = conn.is_valid_uuid("xx38d5e4-6f3e-45fe-8af5-e2d96213b3f0")
 
     # Node info precheck:
-    receipt = conn.node_preprocess('{"node_id": "d0cfa1b4-4f9b-4bb8-bb24-16c86b15f135", "ip_address": "8.8.8.8", "net_address": "JK", "protocol": 0, "port": "2"}')
+    #receipt = conn.node_preprocess('{"node_id": "d0cfa1b4-4f9b-4bb8-bb24-16c86b15f135", "ip_address": "8.8.8.8", "net_address": "JK", "protocol": 0, "port": "2"}')
     print(receipt)
 
 
@@ -537,6 +542,8 @@ Invalid UUID: xx38d5e4-6f3e-45fe-8af5-e2d96213b3f0
 
 Root hash pool:
     0x52f215a01392f27cb930d13954f402a798cb63b67fa88a3d3a9c3649af10dc8b
+    0x5808f6d31f38b0557f3e0d3c3a3ec1e0e57f0ee9b31d1ab2662b2f16b47b0565
+    0x5f5bb5f5e0648b04988ec1dd0c157a90a79871a8c31bf170d94c33a7f62fb955
 
 '''
 
