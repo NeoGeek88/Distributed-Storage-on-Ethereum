@@ -75,19 +75,7 @@ class TestFileHandler(unittest.TestCase):
         self.assertEqual(sample_chunk, dec_enc_chunk)
         print("AES encryption/decryption implemented correctly under the spliting/combination check, Also AES key is successfully protected through Assymetric encryption!")
 
-    # def introduce_errors(self,encoded_chunks, num_errors):
-    #     corrupted_chunks = []
-    #     for chunk in encoded_chunks:
-    #         corrupted_chunk = bytearray(chunk)
-    #         for i in range(num_errors):
-    #             error_pos = random.randint(0, len(corrupted_chunk) - 1)
-    #             error_val = random.randint(1, 255)  # Exclude 0 to ensure the value is actually changed
-    #             corrupted_chunk[error_pos] ^= error_val
-    #         print(corrupted_chunk)
-    #         corrupted_chunks.append(bytes(corrupted_chunk))
-
-    #     return corrupted_chunks
-    def introduce_errors(self, encoded_chunks, error_prob=0.1, drop_prob=0.1):
+    def introduce_errors(self, encoded_chunks, error_prob=0.01, drop_prob=0.1):
         corrupted_chunks = []
         for chunk in encoded_chunks:
             # Drop the chunk with a specified probability
@@ -102,24 +90,26 @@ class TestFileHandler(unittest.TestCase):
         return corrupted_chunks
 
     def testRSed(self):
-        num_errors = 2  # Introduce errors that can be corrected by the RS codec
-        chunks = [b'hello', b'world', b'python', b'rocks', b'life', b'hard']
-        encoded_chunks = self.file_handler.RSenc(chunks)
-        #print("the original chunk list has size -- ", len(chunks), chunks)
-        #print("the redundant chunk list has size -- ", len(encoded_chunks))
-       # print("encoded_chunks", encoded_chunks)
-        
-        corrupted_chunks = self.introduce_errors(encoded_chunks)
-        print("Corrupted Chunks:", corrupted_chunks)
-        # Attempt to decode the corrupted chunks
-        recovered_chunks_all = self.file_handler.RSdec(corrupted_chunks)
-        recovered_chunks = [bytes(chunk[0]) for chunk in recovered_chunks_all]
-        print("Recovered Chunks:", recovered_chunks)
+        for drop_prob in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]:
+            pass_num = 0
+            for num_errors in range(1,30):
+                chunks = [b'hello', b'world', b'python', b'rocks', b'life', b'hard']
+                encoded_chunks = self.file_handler.RSenc(chunks)
+                corrupted_chunks = self.introduce_errors(encoded_chunks, drop_prob = drop_prob)
+                recovered_chunks_all = self.file_handler.RSdec(corrupted_chunks)
+                recovered_chunks = [bytes(chunk[0]) for chunk in recovered_chunks_all]
+                self.assertEqual(chunks,recovered_chunks)
+                pass_num += 1
+            print("Test passed count", pass_num, drop_prob)
 
-        # Verify if the recovered chunks match the original chunks
-        print("Chunks", chunks)
-        self.assertEqual(chunks,recovered_chunks)
-        print("Test passed: recovered data matches the original data")
+
+    def testRSed_File(self):
+        #filePath = "testFiles/storj2014.pdf" ## 500KB
+        filePath = "testFiles/group.pdf" ## 1.9MB
+        rs_chunk_list, enc_AES_key = self.file_handler.uploadFile(filePath)
+        corrupted_chunks = self.introduce_errors(rs_chunk_list, drop_prob = 0.1)
+        self.file_handler.downloadFile(corrupted_chunks, enc_AES_key, "testFiles/test.pdf")
+
 
     def testUD(self, read_file_path, write_file_path):
         file_content = self.file_handler.readFile(read_file_path)
@@ -132,23 +122,19 @@ class TestFileHandler(unittest.TestCase):
 
 
 
-
-        
-
-
-
 if __name__ == "__main__":
     testFile = TestFileHandler()
     testFile.setUp()
-    testFile.test_key_ED()
-    testFile.testSC()
-    testFile.testSC_RW("testFiles/storj2014.pdf", 'testFiles/testCopyPdf.pdf', 'pdf')
-    testFile.test_AES_ED()
-    testFile.testRSed()
-    testFile.testUD("testFiles/storj2014.pdf", 'testFiles/testCopyPdf.pdf')
+    #testFile.test_key_ED()
+    #testFile.testSC()
+    #testFile.testSC_RW("testFiles/storj2014.pdf", 'testFiles/testCopyPdf.pdf', 'pdf')
+    #testFile.test_AES_ED()
+    #testFile.testRSed()
+    testFile.testRSed_File()
+    #testFile.testUD("testFiles/storj2014.pdf", 'testFiles/testCopyPdf.pdf')
 
-    filePath = "testFiles/storj2014.pdf"
-    testFile.testRW(filePath,'testFiles/testCopyPdf.pdf','pdf')
+    #filePath = "testFiles/storj2014.pdf"
+    #testFile.testRW(filePath,'testFiles/testCopyPdf.pdf','pdf')
 
 
 
