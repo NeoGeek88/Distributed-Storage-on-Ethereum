@@ -4,7 +4,7 @@ from eth_account.messages import encode_defunct
 from dotenv import load_dotenv
 import os
 import json
-from ..Crypto import MerkleTree
+#from MerkleTree import MerkleTree
 
 class Connector:
     def __init__(self):
@@ -21,6 +21,24 @@ class Connector:
         
         contract_address = os.getenv("CONTRACT_ADDRESS")
         self.contract = self.w3.eth.contract(address=contract_address, abi=contract_abi)
+
+    
+    def root_hash_precheck(self, root_hash_raw):
+        '''
+        Input: Root hash - the 32-byte hex string.
+        Output: If the root hash valid or not, return root hash value if valid or error if no valid.
+        '''
+        # File root hash should be provided and should be 32-byte hex string.
+        if not root_hash_raw.startswith("0x"):
+            root_hash_raw = "0x" + root_hash_raw
+        if len(root_hash_raw) != 66:
+            return {"is_valid": False, "root_hash": "PROVIDED ROOT HASH STRING IS NOT 32-BYTE."}
+        try:
+            root_hash_int = int(root_hash_raw, 16)
+            root_hash = hex(root_hash_int)
+            return {"is_valid": True, "root_hash": root_hash}
+        except ValueError:
+            return {"is_valid": False, "root_hash": "CAN NOT CONVERT PROVIDED ROOT HASH STRING TO HEX."}
 
 
     def file_preprocess(self, file_json):
@@ -104,12 +122,9 @@ class Connector:
 
     def node_preprocess(self, node_json):
         '''
-        PURPOSE: Pre-check provided node details before making the transaction. 
-        INPUT: Node details including node ID, net address, communication protocol, port info.
-        RETURN: Argument list for calling corresponding smart contract function + .
-        # TODO: return an object contains arguemnet list + error  
-        {args: [], err: string}
-        {args: '', err: }
+        Purpose: Pre-check the provided node details before making the transaction. 
+        Input: Node details including node ID, net address, communication protocol, port info.
+        Output: Argument list for calling corresponding smart contract function + Error message.
         '''
         node_details = json.loads(node_json)
 
@@ -229,7 +244,6 @@ class Connector:
             list_file.append(file)
 
         list_file_json = json.dumps(list_file)
-        print(list_file_json) # TODO: DEL LATER
         return list_file_json
 
 
@@ -247,11 +261,22 @@ class Connector:
         nonce = self.w3.eth.get_transaction_count(os.getenv("WALLET_PUBLIC_KEY"))
         gas_price = self.w3.eth.gas_price
 
+        encoded_data = self.contract.encodeABI(fn_name=function_name, args=function_args)
+
+        #tx = self.contract.functions[function_name](*function_args).build_transaction({
+        #tx = self.contract.functions.build_transaction({
         tx = self.contract.functions[function_name](*function_args).build_transaction({
-            'nonce': nonce,
+            "nonce": nonce,
             'gasPrice': gas_price,
-            'from': os.getenv("WALLET_PUBLIC_KEY")
+            'from': os.getenv("WALLET_PUBLIC_KEY")   
         })
+        # "data": encoded_data,
+        # "myContract": self.contract,
+        # "encodedData" = myContract.encodeABI(fn_name='myFunctionName', args=['foo','bar'])
+
+        #"maxFeePerGas": self.w3.to_wei(250, 'gwei'),
+        #"maxPriorityFeePerGas": self.w3.to_wei(3, 'gwei'),
+
         tx['gas'] = self.w3.eth.estimate_gas(tx)
         private_key = os.getenv("WALLET_PRIVATE_KEY")
 
@@ -268,15 +293,17 @@ class Connector:
     def upload_file(self, file_json):  
         '''
         Input: File details including file name, file size, file root hash, file chunks info.
-        Output: Transaction receipt with information such as transaction status, or error message string if any.
+        Output: Transaction receipt with information such as transaction status (Success=1, Fail=0), or error message string if any.
         '''
         process_status = self.file_preprocess(file_json)
         if process_status["args"] is not None: 
             receipt = self.sign_transaction("addFile", process_status["args"])
-            print(receipt) # DELETE LATER
-            return receipt
+            if receipt["status"] == 1:
+                return {"status": 1, "receipt": receipt}
+            else:
+                return {"status": 0, "receipt": receipt}
         else:
-            return process_status["err"]
+            return {"status": 0, "receipt": process_status["err"]}
  
 
     def retrieve_file(self, root_hash):
@@ -311,7 +338,7 @@ class Connector:
         '''
         Purpose: This function is not used to update the file content, but update the node Id where the file chunk stored.
         Input: Updated file details including origianl file root hash, new file name, and updated file chunks list (Chunk hash : Node Id).
-        Output: Transaction receipt with information such as transaction status, or error message string if any.
+        Output: Transaction receipt with information such as transaction status (Success=1, Fail=0), or error message string if any.
         '''
         process_status = self.file_preprocess(file_update_json)
         if process_status["args"] is not None:
@@ -327,39 +354,25 @@ class Connector:
             ]
 
             receipt = self.sign_transaction("updateFile", args)
-            print(receipt) # DELETE LATER
-            return receipt
+
+            if receipt["status"] == 1:
+                return {"status": 1, "receipt": receipt}
+            else:
+                return {"status": 0, "receipt": receipt}
         else:
-            return process_status["err"]
+            return {"status": 0, "receipt": process_status["err"]} 
 
 
     def remove_file(self, root_hash):  
         '''
         Input: File root hash.
-        Output: Transaction receipt with information such as transaction status, or error message string if any.
+        Output: Transaction receipt with information such as transaction status (Success=1, Fail=0).
         '''
-        # TODO: implement check hash function and apply here (refer line 261)
-        
-        function_name = 'removeFile'
-        function_args = root_hash
-        nonce = self.w3.eth.get_transaction_count(os.getenv("WALLET_PUBLIC_KEY"))
-        gas_price = self.w3.eth.gas_price
-        tx = self.contract.functions[function_name](*function_args).build_transaction({
-            'nonce': nonce,
-            'gasPrice': gas_price,
-            'from': os.getenv("WALLET_PUBLIC_KEY")
-        })
-        tx['gas'] = self.w3.eth.estimate_gas(tx)
-        private_key = os.getenv("WALLET_PRIVATE_KEY")
-
-        # Sign and send the transaction. 
-        signed_function = self.w3.eth.account.sign_transaction(tx, private_key=private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_function.rawTransaction)
-        tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
-
-        receipt = self.generate_receipt(tx_receipt)
-        print(receipt)
-        return receipt
+        receipt = self.sign_transaction("removeFile", [root_hash])
+        if receipt["status"] == 1:
+            return {"status": 1, "receipt": receipt}
+        else:
+            return {"status": 0, "receipt": receipt}
     
 
     def list_nodes(self):
@@ -382,8 +395,8 @@ class Connector:
             list_node.append(node)
 
         list_node_json = json.dumps(list_node)
-        print(list_node_json) # del later
         return list_node_json
+
 
     def get_node(self, node_id):
         '''
@@ -488,13 +501,19 @@ class Connector:
 
 if __name__ == '__main__':
     conn = Connector()
-    #conn.retrieve_file("0x7f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d63")
+    
+    #receipt = conn.list_file()
 
-    #err = conn.upload_file('{"file_name": "s", "file_size": "12", "root_hash": "0x7f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6c", "file_chunks": []}')
+    #receipt = conn.retrieve_file("0x7f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6c")
+
+    #err = conn.root_hash_precheck("0x7f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6c")
+    receipt = conn.upload_file('{"file_name": "Iris2", "file_size": "131", "root_hash": "0x131c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d7b", "file_chunks": [{"chunk_hash":"0x131c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d7a", "node_id": "1"},{"chunk_hash":"0x131c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d1b", "node_id": "2"}]}')
+    
     #err = conn.file_preprocess('{"file_name": "s", "file_size": "12", "root_hash": "0x7f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6c", "file_chunks": []}')
-    err = conn.update_file('{"file_name": "test_update", "file_size": "10", "root_hash": "0x7f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6c", "file_chunks": []}')
+    #receipt = conn.update_file('{"file_name": "Iris", "file_size": "31", "root_hash": "0x8f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6f", "file_chunks": [{"chunk_hash":"0x5f2c17a8d7e82fc0aefb7d9a03761d72bfe31f91879e63f1bc6b3a3d2f6b1d61", "node_id": "13"}]}')
+    #receipt = conn.remove_file(["0x8f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6f"])
 
-    print(err)
+    print(receipt)
     #conn.list_file()
     # if file_details["file_name"]:
       #      else: return "message: file ane should not be empty!"
