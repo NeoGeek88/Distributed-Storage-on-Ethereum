@@ -154,6 +154,8 @@ contract DS is Context, Ownable {
     mapping(address => string[]) private _nodeMapping;
     // Mapping the node ID to its information.
     mapping(string => Node) private _nodeList;
+    // Full node list with node ID only
+    string[] _fullNodeIdList;
 
     /**
      * Modifier to determine if the address is the node owner.
@@ -185,6 +187,7 @@ contract DS is Context, Ownable {
         _nodeList[_nodeId].protocol = _protocol;
         _nodeList[_nodeId].port = _port;
         _nodeMapping[_msgSender()].push(_nodeId);
+        _fullNodeIdList.push(_nodeId);
         return true;
     }
 
@@ -206,13 +209,13 @@ contract DS is Context, Ownable {
     }
 
     /*
-     * Retrieve information of all files owned by this address and return. 
+     * Retrieve information of all available nodes. 
      */
     function listNodes() public view returns(Node[] memory) {
         Node memory node;
-        Node[] memory nodes = new Node[](_nodeMapping[_msgSender()].length);
-        for (uint256 i=0; i<_nodeMapping[_msgSender()].length; i++) {
-            node = _nodeList[_nodeMapping[_msgSender()][i]];
+        Node[] memory nodes = new Node[](_fullNodeIdList.length);
+        for (uint256 i=0; i<_fullNodeIdList.length; i++) {
+            node = _nodeList[_fullNodeIdList[i]];
             nodes[i] = node;
         }
         return nodes;
@@ -231,6 +234,14 @@ contract DS is Context, Ownable {
             bytes32 memoryHash = keccak256(abi.encodePacked(_nodeId));
             if (storageHash == memoryHash) {
                 deleteNodeMappingByIndex(i);
+                break;
+            }
+        }
+        for (uint256 i = 0; i < _fullNodeIdList.length; i++) {
+            bytes32 storageHash = keccak256(abi.encodePacked(_fullNodeIdList[i]));
+            bytes32 memoryHash = keccak256(abi.encodePacked(_nodeId));
+            if (storageHash == memoryHash) {
+                deleteFullNodeIdListByIndex(i);
                 break;
             }
         }
@@ -258,6 +269,19 @@ contract DS is Context, Ownable {
         _nodeMapping[_msgSender()].pop();
     }
 
+    /*
+     * Util function to delete a value at 'index' from an array.
+     */
+    function deleteFullNodeIdListByIndex(uint256 index) private {
+        require(index < _fullNodeIdList.length, "Index out of bounds");
+        
+        for (uint256 i = index; i < _fullNodeIdList.length-1; i++) {
+            _fullNodeIdList[i] = _fullNodeIdList[i+1];
+        }
+        
+        _fullNodeIdList.pop();
+    }
+
 
     function performMerkleProof(
         bytes32[] memory proof, 
@@ -275,6 +299,14 @@ contract DS is Context, Ownable {
             bytes32 memoryHash = keccak256(abi.encodePacked(_nodeId));
             if (storageHash == memoryHash) {
                 deleteNodeMappingByIndex(i);
+                break;
+            }
+        }
+        for (uint256 i = 0; i < _fullNodeIdList.length; i++) {
+            bytes32 storageHash = keccak256(abi.encodePacked(_fullNodeIdList[i]));
+            bytes32 memoryHash = keccak256(abi.encodePacked(_nodeId));
+            if (storageHash == memoryHash) {
+                deleteFullNodeIdListByIndex(i);
                 break;
             }
         }
