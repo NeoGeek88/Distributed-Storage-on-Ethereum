@@ -165,9 +165,9 @@ class Connector:
 		else:
 			return {"args": None, "err": "MISSING IP ADDRESS INFORMATION."}
 		
-		# Net address should be provided, but it can be empty.
-		if ("net_address" in node_details) and (node_details["net_address"] is not None):
-			net_address = node_details["net_address"] if node_details["net_address"] else ""
+		# Domain should be provided, but it can be empty.
+		if ("domain" in node_details) and (node_details["domain"] is not None):
+			domain = node_details["domain"] if node_details["domain"] else ""
 		else:
 			return {"args": None, "err": "MISSING NET ADDRESS INFORMATION."}
 		
@@ -198,7 +198,7 @@ class Connector:
 		args = [
 			node_id,
 			ip_address,
-			net_address,
+			domain,
 			protocol,
 			port
 		]
@@ -389,7 +389,7 @@ class Connector:
 			node = {}
 			node["node_id"] = n[0]
 			node["ip_address"] = n[1]
-			node["net_address"] = n[2]
+			node["domain"] = n[2]
 			node["protocol"] = n[3]
 			node["port"] = n[4]
 			node["owner"] = n[5]
@@ -427,7 +427,7 @@ class Connector:
 		node = {}
 		node["node_id"] = raw_node[0]
 		node["ip_address"] = raw_node[1]
-		node["net_address"] = raw_node[2]
+		node["domain"] = raw_node[2]
 		node["protocol"] = raw_node[3]
 		node["port"] = raw_node[4]
 		node["owner"] = raw_node[5]
@@ -491,13 +491,13 @@ if __name__ == '__main__':
 	# receipt = conn.is_valid_uuid("xx38d5e4-6f3e-45fe-8af5-e2d96213b3f0")
 
 	# Node info precheck:
-	# receipt = conn.node_preprocess('{"node_id": "d0cfa1b4-4f9b-4bb8-bb24-16c86b15f135", "ip_address": "8.8.8.8", "net_address": "JK", "protocol": 0, "port": "2"}')
+	# receipt = conn.node_preprocess('{"node_id": "d0cfa1b4-4f9b-4bb8-bb24-16c86b15f135", "ip_address": "8.8.8.8", "domain": "JK", "protocol": 0, "port": "2"}')
 	
 	# All active nodes:
 	# receipt = conn.list_nodes()
 
 	# Add new node:
-	# receipt = conn.add_node('{"node_id": "d0cfa1b4-4f9b-4bb8-bb24-16c86b15f135", "ip_address": "8.8.8.8", "net_address": "JK", "protocol": 0, "port": "2"}')
+	# receipt = conn.add_node('{"node_id": "d0cfa1b4-4f9b-4bb8-bb24-16c86b15f135", "ip_address": "8.8.8.8", "domain": "JK", "protocol": 0, "port": "2"}')
 	
 	# Get single node:
 	# receipt = conn.get_node("d0cfa1b4-4f9b-4bb8-bb24-16c86b15f135")
