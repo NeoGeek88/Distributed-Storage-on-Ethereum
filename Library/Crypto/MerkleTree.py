@@ -3,8 +3,8 @@ from web3 import Web3, EthereumTesterProvider
 
 class MerkleTree:
 
-    def __init__(self, chunk_list):
-        self.merkle_tree = self.build_merkle_tree(chunk_list)
+    # def __init__(self, chunk_list):
+    #     self.merkle_tree = self.build_merkle_tree(chunk_list)
 
     '''
     Perform keccak256 hash method same as Solidity function
@@ -20,8 +20,8 @@ class MerkleTree:
     Get the root hash for the input chunk list
     OUTPUT: HexBytes with length of 32, roothash for the file
     '''
-    def get_roothash(self):
-        return self.merkle_tree[len(self.merkle_tree)-1]
+    def get_roothash(self, tree):
+        return tree[len(tree)-1]
 
     '''
     Build the merkle tree with all intermediate hash values for further process
@@ -32,7 +32,10 @@ class MerkleTree:
         tree = []
         for chunk in chunk_list:
             #tree.append(self.keccak256(chunk, 'string'))
-            tree.append(bytes.fromhex(chunk.chunk_hash[2:]))
+            tree.append(bytes(chunk["chunk_hash"]))
+
+        # for chunk in chunk_list['file_chunks']:
+        #     tree.append(bytes.fromhex(chunk['chunk_hash']))
 
         n = len(tree)
         offset = 0
