@@ -19,13 +19,12 @@ import connector
 
 """
     TODO:
-    1. FETCH INFO FROM SMARTCONTRACT        0326-0327   FINISHED
-    2. IMPLEMENT FILE RECOVERY              0328-0330   PENDING
+    1. FETCH INFO FROM SMARTCONTRACT                            0326-0327   FINISHED
+    2. IMPLEMENT FILE RECOVERY and PERIODICAL INTEGRITY CHECK   0328-0330   PENDING
 """
 
 config_path = os.path.join(os.getcwd(), "server.json")
 PORT = 3000
-
 
 
 chunk_db_path = "chunks.db"
@@ -146,6 +145,16 @@ def get_chunk(conn, chunk_hash):
 
     return chunk
 
+def get_unverified_chunks(conn):
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM chunks where verified=0"
+    )
+
+    chunks = cursor.fetchall()
+    cursor.close()
+
+    return chunks
 
 # TYPE: UPLOAD, DOWNLOAD, CHECK, SYSTEM
 def log(conn, content, type):
@@ -173,19 +182,25 @@ app = Flask(__name__)
 
 @app.route("/chunk", methods=["POST"])
 def save_chunk():
+    log_db_conn = connect_to_log_db()
+
+    # parse the chunk data from request body
     body = request.json
-    print(body)
 
     chunk_hash = body["chunkHash"]
     chunk_data = body["chunkData"]
+    log(
+        log_db_conn,
+        f"received chunk {chunk_hash} to be saved",
+        "UPLOAD"
+    )
 
+    # save the chunk into chunk db
     chunk_db_conn = connect_to_chunk_db()
     add_chunk(chunk_db_conn, chunk_hash, chunk_data).close()
 
     with open(os.path.join(chunk_path, chunk_hash), "wb") as f:
         f.write(base64.b64decode(chunk_data))
-
-    log_db_conn = connect_to_log_db()
 
     log(
         log_db_conn,
@@ -229,11 +244,19 @@ def download_chunk(hash):
 
 @app.route("/chunk/verify", methods=["GET"])
 def verify_chunks():
+    
+    #all_chunks = fetch_chunks(app.config["UUID"])
+
     chunk_db_conn = connect_to_chunk_db()
     log_conn = connect_to_log_db()
 
-
     # TODO: VERIFY ALL NON_VERIFIED CHUNKS BY LISTING ALL CHUNKS FROM SMART CONTRACT
+    chunks_to_verify = get_unverified_chunks(chunk_db_conn)
+    
+    for unverified_chunk in chunks_to_verify:
+        # check records on blockchain for these unverified chunks 
+        # pending connector method 03282023
+        pass
 
     db_execute(chunk_db_conn, """
         UPDATE chunks
@@ -310,12 +333,14 @@ def boot():
     if not registered:
         register(contract_conn, config)
 
+    return config
+
     
 
 if __name__ == "__main__":
     #create dbs
 
-    boot()
+    config = boot()
 
     if not os.path.exists(os.path.join(os.getcwd(), chunk_db_path)):
         build_chunk_db(connect_to_chunk_db()).close()        
@@ -326,5 +351,7 @@ if __name__ == "__main__":
 
     if not os.path.isdir(os.path.join(os.getcwd(), chunk_path)):
         os.mkdir(os.path.join(os.getcwd(), chunk_path))
+
+    app.config["UUID"] = config["node_id"]    
 
     app.run(port=PORT)
