@@ -11,11 +11,7 @@ import asyncio
 from connector import Connector
 import base64
 from MerkleTree import MerkleTree
-
-'''
- #TODO: .env, update()， remove()
-
-'''
+from dotenv import  load_dotenv
 
 class Client:
     def __init__(self):
@@ -26,6 +22,30 @@ class Client:
         self.connector = Connector()
         self.merkletree = MerkleTree()
         self.testUrl = "http://127.0.0.3:5000"
+
+        # Load environment variables from .env file
+        load_dotenv()
+
+        # Get wallet public and private keys from environment variables
+        self.wallet_public_key = os.getenv("WALLET_PUBLIC_KEY")
+        self.wallet_private_key = os.getenv("WALLET_PRIVATE_KEY")
+
+        # Check if wallet keys exist
+        if not self.wallet_public_key or not self.wallet_private_key:
+            # Ask user for wallet keys
+            questions = [
+                inquirer.Text('wallet_public_key', message="Enter your wallet public key:"),
+                inquirer.Text('wallet_private_key', message="Enter your wallet private key:")
+            ]
+            answers = inquirer.prompt(questions)
+
+            # Save wallet keys to environment variables
+            os.environ["WALLET_PUBLIC_KEY"] = answers['wallet_public_key']
+            os.environ["WALLET_PRIVATE_KEY"] = answers['wallet_private_key']
+
+            # Update instance variables with wallet keys
+            self.wallet_public_key = answers['wallet_public_key']
+            self.wallet_private_key = answers['wallet_private_key']
 
     # Save AES key to local storage
     def save_aes_key(self, file_name, enc_aes_key):
@@ -80,6 +100,11 @@ class Client:
                 print(f"Error downloading chunk {chunk_hash} from node {node_ip}")
         return chunks_data
 
+    # TODO: remove chunks from server
+    def remove_chunks_from_server(self, node_ips_server):
+        return
+
+
     def get_available_nodes(self):
         # Mock avaiable nodes for testing , 'faf8fc10-5775-4006-a555-372ae34ade31'
         return ['a2b6f472-3f5a-490c-8af5-c840f680b598', 'aa5b2f8c-52f9-4239-a658-19abac8fe851']
@@ -88,7 +113,7 @@ class Client:
     def run(self):
         while True:
             questions = [
-                inquirer.List('action', message="What do you want to do?", choices=['Upload', 'Download', 'Exit'])
+                inquirer.List('action', message="What do you want to do?", choices=['Upload', 'Download', 'Check', 'Exit'])
             ]
             answer = inquirer.prompt(questions)
 
@@ -96,6 +121,8 @@ class Client:
                 self.upload_file()
             elif answer['action'] == 'Download':
                 self.download_file()
+            elif answer['action'] == 'Check':
+                self.check_files()
             elif answer['action'] == 'Exit':
                 break
 
@@ -219,6 +246,8 @@ class Client:
         else:
             print("Error uploading file to blockchain.")
 
+        return
+
 
 
     '''
@@ -297,45 +326,74 @@ class Client:
         # Decode, decrypt, merge into a local file
         self.file_handler.downloadFile(file_chunks, bytearray(enc_AES_key), download_path)
 
+        return
+
+    def check_files(self):
+        # Get file metadata from smart contract
+        files_metadata = json.loads(self.connector.list_file())
+
+      # Get file names for the user to choose from
+        choices = [file_metadata["file_name"] for file_metadata in files_metadata]
+        questions = [inquirer.List('file_name', message="Which file do you want to check?", choices=choices)]
+        answers = inquirer.prompt(questions)
+
+        # Get metadata for the selected file
+        selected_file_metadata = None
+        for file_metadata in files_metadata:
+            if file_metadata["file_name"] == answers['file_name']:
+                selected_file_metadata = file_metadata
+                break
+
+        if selected_file_metadata is None:
+            print("File not found.")
+            return
+
+        # Print file metadata for the user to see
+        print("File size:", selected_file_metadata["file_size"])
+        print("Root hash:", selected_file_metadata["root_hash"])
+        print("Node IDs of file chunks:")
+        node_ids = []
+        # Extract node ids from the selected file metadata
+        for chunk in selected_file_metadata["file_chunks"]:
+            node_ids.append(chunk["node_id"])
+            print(chunk["node_id"])
+
+        # Ask user if they want to remove the file
+        questions = [inquirer.Confirm('remove_file', message="Do you want to remove the file?")]
+        answers = inquirer.prompt(questions)
+
+        if answers['remove_file']:
+
+            # Get IP addresses of nodes
+            node_ips = {}
+            for node_id in node_ids:
+                node_json = self.connector.get_node(node_id)
+            node = json.loads(node_json)
+            node_ips[node_id] = node["ip_address"]
+
+            # Construct the file metadata for the server
+            node_ips_server = {}
+            for chunk in selected_file_metadata["file_chunks"]:
+                node_id = chunk["node_id"]
+                chunk_hash = chunk["chunk_hash"]
+                ip_address = node_ips[node_id]
+                node_ips_server[chunk_hash] = ip_address
+
+            # Remove nodes from server
+            # TODO: if failed, do sth
+            self.remove_chunks_from_server(node_ips_server)
+
+            # Remove the file from the smart contract
+            # receipt = await asyncio.wait_for(self.connector.remove_file(selected_file_metadata["root_hash"]), timeout=None)
+            receipt = self.connector.remove_file(selected_file_metadata["root_hash"])
+
+            if receipt['status'] == 1:
+                print("File removed from blockchain successfully!")
+            else:
+                print("Error removing file from blockchain.")
 
 
 
-
-
-
-
-
-
-
-
-
-        # # Find the metadata for the selected file
-        # selected_file_metadata = None
-        # for file_metadata in files_metadata:
-        #     if file_metadata["file_name"] == selected_file_name:
-        #         selected_file_metadata = file_metadata
-        #         break
-        #
-        # if selected_file_metadata is None:
-        #     # file is not exist
-        #     print(f"Error: file {selected_file_name} not found")
-        #
-        # # Get the chunk hashes and node ids from the metadata
-        # chunk_hashes = [chunk["chunk_hash"] for chunk in selected_file_metadata["file_chunks"]]
-        # node_ids = [chunk["node_id"] for chunk in selected_file_metadata["file_chunks"]]
-        #
-        # # Download each chunk from a randomly selected node
-        # downloaded_chunks = []
-        # for chunk_hash, node_id in zip(chunk_hashes, node_ids):
-        #     downloaded_chunk = self.network.download_chunk(chunk_hash, node_id)
-        #     downloaded_chunks.append(downloaded_chunk)
-        #
-        # # Merge the downloaded chunks into the original file and save it to the specified path
-        # self.file_handler.downloadFile(downloaded_chunks, selected_file_metadata['enc_aes_key'], download_path)
-        # # merged_file = self.file_handler.downloadFile(decrypted_data, selected_file_metadata['file_name'],
-        # #                                              selected_file_metadata['file_size'])
-        #
-        # print(f"{selected_file_name} downloaded successfully to {download_path}.")
 
 
 if __name__ == '__main__':
