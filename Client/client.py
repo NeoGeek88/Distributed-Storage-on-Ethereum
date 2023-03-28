@@ -32,6 +32,10 @@ class Client:
         self.wallet_public_key = os.getenv("WALLET_PUBLIC_KEY")
         self.wallet_private_key = os.getenv("WALLET_PRIVATE_KEY")
 
+        # Get file public and private keys from environment variables
+        self.file_public_key = os.getenv("FILE_PUBLIC_KEY")
+        self.file_private_key = os.getenv("FILE_PRIVATE_KEY")
+
         # Check if wallet keys exist
         if not self.wallet_public_key or not self.wallet_private_key:
             # Ask user for wallet keys
@@ -48,6 +52,19 @@ class Client:
             # Update instance variables with wallet keys
             self.wallet_public_key = answers['wallet_public_key']
             self.wallet_private_key = answers['wallet_private_key']
+        else:
+            print("Your wallet keys exist")
+
+        # Check if file keys exist
+        if not self.file_public_key or not self.file_private_key:
+            # Ask user to generate file keys
+            # TODO: Use key_generator or let user write the keys
+            print("Please check the .env file and provide your file encryption keys")
+            os._exit(0)
+        else:
+            print("Your file encryption keys exist")
+
+
 
     # Save AES key to local storage
     def save_aes_key(self, file_name, enc_aes_key):
@@ -188,15 +205,15 @@ class Client:
         chunks_count = len(hashed_chunks)
 
         # Get available nodes and select a random subset to store chunks
-        # available_nodes = self.connector.list_nodes()
+        #available_nodes = self.connector.list_nodes()
         #mock available_nodes
-        available_nodes = self.get_available_nodes()
+        #available_nodes = self.get_available_nodes()
 
         # Get available nodes from SC
-        #available_nodes = self.connector.list_nodes()
+        available_nodes = self.connector.list_nodes()
 
         # randomly select nodes
-        #selected_nodes = np.random.choice(available_nodes, size=chunks_count, replace=True)
+        selected_nodes = np.random.choice(available_nodes, size=chunks_count, replace=True)
 
         # #choose hash type for merkle tree
         # mt = merkletools.MerkleTools(hash_type="sha256")
@@ -226,7 +243,7 @@ class Client:
             "file_size": file_size,
             "root_hash": root_hash,
             "file_chunks": [{"chunk_hash": chunk_hash.hex(), "node_id": node_id} for chunk_hash, node_id in
-                            zip(hashed_chunks, available_nodes)]
+                            zip(hashed_chunks, selected_nodes)]
         }
 
         # Construct the file metadata for the server
@@ -235,7 +252,7 @@ class Client:
         #     "file_size": file_size,
         #     "root_hash": root_hash,
         #     "file_chunks": [{"chunkHash": chunk, "node_id": node_id} for chunk, node_id in
-        #                     zip(chunk_list_server, available_nodes)]
+        #                     zip(chunk_list_server, selected_nodes)]
         # }
 
         # Construct the file metadata for the server
@@ -250,12 +267,12 @@ class Client:
 
         # Upload the metadata to the smart contract
         # receipt = await asyncio.wait_for(connector.upload_file(json_metadata), timeout=None)
-        # receipt = self.connector.upload_file(json_metadata)
-        #
-        # if receipt['status'] == 1:
-        #     print("File metadata uploaded to blockchain successfully!")
-        # else:
-        #     print("Error uploading file to blockchain.")
+        receipt = self.connector.upload_file(json_metadata)
+
+        if receipt['status'] == 1:
+            print("File metadata uploaded to blockchain successfully!")
+        else:
+            print("Error uploading file to blockchain.")
 
         # Upload the metadata to the server
         response = self.upload_chunks_to_server(file_metadata_server)
