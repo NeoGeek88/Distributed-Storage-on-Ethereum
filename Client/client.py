@@ -374,6 +374,12 @@ class Client:
         # Get file metadata from smart contract
         files_metadata = json.loads(self.connector.list_file())
 
+        # If user has no file
+        if len(files_metadata) == 0:
+            print("You have no file in our smart contract, please upload you file")
+            return
+
+
       # Get file names for the user to choose from
         choices = [file_metadata["file_name"] for file_metadata in files_metadata]
         questions = [inquirer.List('file_name', message="Which file do you want to check?", choices=choices)]
