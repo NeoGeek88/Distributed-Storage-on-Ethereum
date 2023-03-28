@@ -22,6 +22,8 @@ class Client:
         self.connector = Connector()
         self.merkletree = MerkleTree()
         self.testUrl = "http://127.0.0.3:5000"
+        self.testUrl_server = "http://localhost:3000/chunk"
+        self.testUrl_verify = "http://localhost:3000/chunk/verify"
 
         # Load environment variables from .env file
         load_dotenv()
@@ -78,10 +80,23 @@ class Client:
         return base64.b64decode(aes_keys.get(file_name))
 
     def upload_chunks_to_server(self, chunks):
-        #headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-        headers = {'Content-Type': 'application/json'}
-        response = requests.post(self.testUrl, data=chunks, headers = headers)
+        headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+        #headers = {'Content-Type': 'application/json'}
+        for chunk in chunks:
+            json_data = json.dumps(chunk)
+            response = requests.post(self.testUrl_server, data=json_data, headers=headers)
+            if response.status_code != 200:
+                break
+
+
+        #response = requests.post(self.testUrl_server, data=chunks, headers = headers)
         return response
+
+    def verify_chunks(self):
+        response = requests.get(self.testUrl_verify)
+        return response
+
+
 
     def download_chunks_from_server(self, node_ips_server):
         chunks_data = []
@@ -215,36 +230,46 @@ class Client:
         }
 
         # Construct the file metadata for the server
-        file_metadata_server = {
-            "file_name": file_name,
-            "file_size": file_size,
-            "root_hash": root_hash,
-            "file_chunks": [{"chunk": chunk, "node_id": node_id} for chunk, node_id in
-                            zip(chunk_list_server, available_nodes)]
-        }
+        # file_metadata_server = {
+        #     "file_name": file_name,
+        #     "file_size": file_size,
+        #     "root_hash": root_hash,
+        #     "file_chunks": [{"chunkHash": chunk, "node_id": node_id} for chunk, node_id in
+        #                     zip(chunk_list_server, available_nodes)]
+        # }
+
+        # Construct the file metadata for the server
+        file_metadata_server = [{"chunkHash": chunk_hash.hex(), "chunkData": chunk} for chunk_hash, chunk in
+                            zip(hashed_chunks, chunk_list_server)]
 
         # Convert the metadata to JSON format
         json_metadata = json.dumps(file_metadata)
 
         # Convert the metadata to JSON format for server
-        json_metadata_server = json.dumps(file_metadata_server)
+        #json_metadata_server = json.dumps(file_metadata_server)
+
+        # Upload the metadata to the smart contract
+        # receipt = await asyncio.wait_for(connector.upload_file(json_metadata), timeout=None)
+        # receipt = self.connector.upload_file(json_metadata)
+        #
+        # if receipt['status'] == 1:
+        #     print("File metadata uploaded to blockchain successfully!")
+        # else:
+        #     print("Error uploading file to blockchain.")
 
         # Upload the metadata to the server
-        response = self.upload_chunks_to_server(json_metadata_server)
+        response = self.upload_chunks_to_server(file_metadata_server)
 
         if response.status_code == 200:
             print("Chunks uploaded to server successfully!")
         else:
             print("Failed to upload chunks. Error code:", response.status_code)
 
-        # Upload the metadata to the smart contract
-        # receipt = await asyncio.wait_for(connector.upload_file(json_metadata), timeout=None)
-        receipt = self.connector.upload_file(json_metadata)
-
-        if receipt['status'] == 1:
-            print("File metadata uploaded to blockchain successfully!")
+        response_verify = self.verify_chunks()
+        if response_verify.status_code == 200:
+            print("all chunks are verified")
         else:
-            print("Error uploading file to blockchain.")
+            print("verify failed")
 
         return
 
