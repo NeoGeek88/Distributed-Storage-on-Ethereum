@@ -301,6 +301,36 @@ class Connector:
 		return list_file_json
 
 
+	def list_all_file(self):
+		'''
+		Input: None
+		Output: The metadata of all files that current address owns.
+		Restriction: Only authorized addresses are able to call this function.
+		'''
+		raw_list_file = self.contract.functions.listAllFiles().call({
+			"from": os.getenv("WALLET_PUBLIC_KEY")
+		})
+
+		list_file = []
+		for f in raw_list_file:
+			file = {}
+			file["key"] = f[0]
+			file["owner"] = f[1]
+			file["file_name"] = f[2]
+			file["file_size"] = f[3]
+			file["root_hash"] = f[4].hex()
+			file["file_chunk_count"] = f[5]
+
+			file["file_chunks"] = []
+			for c in f[6]:
+				chunk = {}
+				chunk["chunk_hash"] = c[0].hex()
+				chunk["node_id"] = c[1]
+				file["file_chunks"].append(chunk)
+
+			list_file.append(file)
+
+
 	def upload_file(self, file_json):  
 		'''
 		Input: File details including file name, file size, file root hash, file chunks info.
