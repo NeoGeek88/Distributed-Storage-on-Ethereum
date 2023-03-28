@@ -245,7 +245,7 @@ class Connector:
 		function_args = func_args
 
 		# Build transaction.
-		nonce = self.w3.eth.get_transaction_count(os.getenv("WALLET_PUBLIC_KEY"))
+		nonce = self.w3.eth.get_transaction_count(os.getenv("WALLET_PUBLIC_ADDRESS"))
 		gas_price = self.w3.eth.gas_price
 
 		encoded_data = self.contract.encodeABI(fn_name=function_name, args=function_args)
@@ -253,7 +253,7 @@ class Connector:
 		tx = self.contract.functions[function_name](*function_args).build_transaction({
 			"nonce": nonce,
 			'gasPrice': gas_price,
-			'from': os.getenv("WALLET_PUBLIC_KEY")   
+			'from': os.getenv("WALLET_PUBLIC_ADDRESS")   
 		})
 
 		tx['gas'] = self.w3.eth.estimate_gas(tx)
@@ -275,7 +275,7 @@ class Connector:
 		Output: Return True if file exists, otherwise false.
 		'''
 		is_exists = self.contract.functions.fileExists(root_hash).call({
-			"from": os.getenv("WALLET_PUBLIC_KEY")
+			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 
 		return is_exists
@@ -287,7 +287,7 @@ class Connector:
 		Output: The metadata of all files that current address owns.
 		'''
 		raw_list_file = self.contract.functions.listFiles().call({
-			"from": os.getenv("WALLET_PUBLIC_KEY")
+			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 
 		list_file = []
@@ -320,7 +320,7 @@ class Connector:
 		Restriction: Only authorized addresses are able to call this function.
 		'''
 		raw_list_file = self.contract.functions.listAllFiles().call({
-			"from": os.getenv("WALLET_PUBLIC_KEY")
+			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 
 		list_file = []
@@ -366,7 +366,7 @@ class Connector:
 		'''
 		# Check return value to see if file exist.
 		raw_retrieved_file = self.contract.functions.getFile(root_hash).call({
-			"from": os.getenv("WALLET_PUBLIC_KEY")
+			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 
 		retrieved_file = {}
@@ -437,7 +437,7 @@ class Connector:
 		is_valid = self.is_valid_uuid(node_id)
 		if is_valid:
 			is_exists = self.contract.functions.nodeExists(node_id).call({
-				"from": os.getenv("WALLET_PUBLIC_KEY")
+				"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 			})
 
 			if is_exists:
@@ -454,7 +454,7 @@ class Connector:
 		Output: The information of all available nodes.
 		'''
 		raw_list_node = self.contract.functions.listNodes().call({
-			"from": os.getenv("WALLET_PUBLIC_KEY")
+			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 
 		list_node = []
@@ -494,7 +494,7 @@ class Connector:
 		Output: Node information
 		'''
 		raw_node = self.contract.functions.getNode(node_id).call({
-			"from": os.getenv("WALLET_PUBLIC_KEY")
+			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 
 		node = {}
@@ -533,7 +533,7 @@ class Connector:
 		args = [proof, root_hash, leaf_hash, index]
 
 		raw_proof_result = self.contract.functions.getFile(args).call({
-			"from": os.getenv("WALLET_PUBLIC_KEY")
+			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 		
 		proof_result = json.dumps(raw_proof_result)
