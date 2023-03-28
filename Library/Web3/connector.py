@@ -269,6 +269,18 @@ class Connector:
 		return receipt
  
 
+	def is_file_exists(self, root_hash):
+		'''
+		Input: File root hash.
+		Output: Return True if file exists, otherwise false.
+		'''
+		is_exists = self.contract.functions.fileExists(root_hash).call({
+			"from": os.getenv("WALLET_PUBLIC_KEY")
+		})
+
+		return is_exists
+
+
 	def list_file(self):
 		'''
 		Input: None
@@ -299,6 +311,36 @@ class Connector:
 
 		list_file_json = json.dumps(list_file)
 		return list_file_json
+
+
+	def list_all_file(self):
+		'''
+		Input: None
+		Output: The metadata of all files that current address owns.
+		Restriction: Only authorized addresses are able to call this function.
+		'''
+		raw_list_file = self.contract.functions.listAllFiles().call({
+			"from": os.getenv("WALLET_PUBLIC_KEY")
+		})
+
+		list_file = []
+		for f in raw_list_file:
+			file = {}
+			file["key"] = f[0]
+			file["owner"] = f[1]
+			file["file_name"] = f[2]
+			file["file_size"] = f[3]
+			file["root_hash"] = f[4].hex()
+			file["file_chunk_count"] = f[5]
+
+			file["file_chunks"] = []
+			for c in f[6]:
+				chunk = {}
+				chunk["chunk_hash"] = c[0].hex()
+				chunk["node_id"] = c[1]
+				file["file_chunks"].append(chunk)
+
+			list_file.append(file)
 
 
 	def upload_file(self, file_json):  
@@ -385,7 +427,26 @@ class Connector:
 			return {"status": 1, "receipt": receipt}
 		else:
 			return {"status": 0, "receipt": receipt}
-	
+
+
+	def is_node_exists(self, node_id):
+		'''
+		Input: Node ID (Valid UUID).
+		Output: Return -1: UUID invalid, 1: node exists, 0: node not exists.
+		'''
+		is_valid = self.is_valid_uuid(node_id)
+		if is_valid:
+			is_exists = self.contract.functions.nodeExists(node_id).call({
+				"from": os.getenv("WALLET_PUBLIC_KEY")
+			})
+
+			if is_exists:
+				return {"is_exists": 1, "err": None}
+			else:
+				return {"is_exists": 0, "err": None}
+		else:
+			return {"is_exists": -1, "err": "INVALID UUID"}
+
 
 	def list_nodes(self):
 		'''
@@ -484,7 +545,7 @@ if __name__ == '__main__':
 	
 	# ============= FILE ============
 	# Retrieve all files:
-	# receipt = conn.list_file()
+	# receipt = conn.list_all_file()
 	
 	# Upload file:
 	# receipt = conn.upload_file('{"file_name": "Cloud", "file_size": "100", "root_hash": "0x52f215a01392f27cb930d13954f402a798cb63b67fa88a3d3a9c3649af10dc8b", "file_chunks": [{"chunk_hash":"0x5808f6d31f38b0557f3e0d3c3a3ec1e0e57f0ee9b31d1ab2662b2f16b47b0565", "node_id": "5338d5e4-6f3e-45fe-8af5-e2d96213b3f0"},{"chunk_hash":"0x5f5bb5f5e0648b04988ec1dd0c157a90a79871a8c31bf170d94c33a7f62fb955", "node_id": "e46b3dc7-11f2-4b9c-8693-3eae76c03735"}]}')
@@ -498,6 +559,9 @@ if __name__ == '__main__':
 	# Remove specific file:
 	# receipt = conn.remove_file(["0x8f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6f"])
 
+	# Check if file exist:
+	#receipt = conn.is_file_exists("0x52f215a01392f27cb930d13954f402a798cb63b67fa88a3d3a9c3649af10dc8b")
+
 	# ============= NODE ============
 	# Check valid UUID:
 	# receipt = conn.is_valid_uuid("xx38d5e4-6f3e-45fe-8af5-e2d96213b3f0")
@@ -505,6 +569,8 @@ if __name__ == '__main__':
 	# Node info precheck:
 	# receipt = conn.node_preprocess('{"node_id": "d0cfa1b4-4f9b-4bb8-bb24-16c86b15f135", "ip_address": "8.8.8.8", "domain": "JK", "protocol": 0, "port": "2"}')
 	
+	# Check if node exist:
+	receipt = conn.is_node_exists("5338d5e4-6f3e-45fe-8af5-e2d96213b3f0")
 	# All active nodes:
 	# receipt = conn.list_nodes()
 
