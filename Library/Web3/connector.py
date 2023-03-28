@@ -57,12 +57,21 @@ class Connector:
 	def file_preprocess(self, file_json):
 		'''
 		Purpose: Pre-check the provided file details before making the transaction. 
-		Input: File details including file name, file size, file root hash, file chunks info.
+		Input: File details including key (encrypted AES key), file name, file size, file root hash, file chunks info.
 		Output: Argument list for calling corresponding smart contract function + Error message.
 		'''
 		file_details = json.loads(file_json)
 
 		# =========== FILE PRE-PRECESSING ===========
+		# Encrypted AES key should be provided and should not be empty string.
+		if ("key" in file_details) and (file_details["key"] is not None):
+			if file_details["key"]:
+				key = file_details["key"] 
+			else: 
+				return {"args": None, "err": "ENCRYPTED AES KEY SHOULD NOT BE EMPTY."}
+		else:
+			return {"args": None, "err": "MISSING ENCRYPTED AES KEY."}
+
 		# File name should be provided and should not be empty string.
 		if ("file_name" in file_details) and (file_details["file_name"] is not None):
 			if file_details["file_name"]:
@@ -127,6 +136,7 @@ class Connector:
 			return {"args": None, "err": "MISSING FILE CHUNKS INFORMATION."}
 
 		args = [
+			key,
 			file_name,
 			file_size,
 			root_hash,
@@ -271,14 +281,15 @@ class Connector:
 		list_file = []
 		for f in raw_list_file:
 			file = {}
-			file["owner"] = f[0]
-			file["file_name"] = f[1]
-			file["file_size"] = f[2]
-			file["root_hash"] = f[3].hex()
-			file["file_chunk_count"] = f[4]
+			file["key"] = f[0]
+			file["owner"] = f[1]
+			file["file_name"] = f[2]
+			file["file_size"] = f[3]
+			file["root_hash"] = f[4].hex()
+			file["file_chunk_count"] = f[5]
 
 			file["file_chunks"] = []
-			for c in f[5]:
+			for c in f[6]:
 				chunk = {}
 				chunk["chunk_hash"] = c[0].hex()
 				chunk["node_id"] = c[1]
@@ -317,14 +328,15 @@ class Connector:
 		})
 
 		retrieved_file = {}
-		retrieved_file["owner"] = raw_retrieved_file[0]
-		retrieved_file["file_name"] = raw_retrieved_file[1]
-		retrieved_file["file_size"] = raw_retrieved_file[2]
-		retrieved_file["root_hash"] = raw_retrieved_file[3].hex()
-		retrieved_file["file_chunk_count"] = raw_retrieved_file[4]
+		retrieved_file["key"] = raw_retrieved_file[0]
+		retrieved_file["owner"] = raw_retrieved_file[1]
+		retrieved_file["file_name"] = raw_retrieved_file[2]
+		retrieved_file["file_size"] = raw_retrieved_file[3]
+		retrieved_file["root_hash"] = raw_retrieved_file[4].hex()
+		retrieved_file["file_chunk_count"] = raw_retrieved_file[5]
 
 		retrieved_file["file_chunks"] = []
-		for c in raw_retrieved_file[5]:
+		for c in raw_retrieved_file[6]:
 			chunk = {}
 			chunk["chunk_hash"] = c[0].hex()
 			chunk["node_id"] = c[1]
@@ -343,14 +355,14 @@ class Connector:
 		process_status = self.file_preprocess(file_update_json)
 		if process_status["args"] is not None:
 
-			# Raw structure: [file_name, file_size, root_hash, file_chunks[]].
+			# Raw structure: [key, file_name, file_size, root_hash, file_chunks[]].
 			raw_args = process_status["args"]
 
 			# Reconstruct argument list: [root_hash, file_name, file_chunks[]].
 			args = [
-				raw_args[2], 
-				raw_args[0], 
-				raw_args[3]
+				raw_args[3], 
+				raw_args[1], 
+				raw_args[4]
 			]
 
 			receipt = self.sign_transaction("updateFile", args)
