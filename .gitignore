@@ -2,5 +2,4 @@
 .venv
 
 # Environment variable
-.envignore
 .env 
