@@ -7,8 +7,6 @@ import os
 import json
 #from MerkleTree import MerkleTree
 
-ABI_PATH = os.path.join(os.getcwd(), "contract_abi.json")
-
 class Connector:
 	def __init__(self):
 		# Load the environment variables from the .env file.
@@ -19,7 +17,7 @@ class Connector:
 		self.w3 = Web3(Web3.HTTPProvider(os.getenv("INFURA_NODE_ENDPOINT")))
 
 		# Load the contract ABI and contract address.
-		with open('contract_abi.json', 'r') as f: 
+		with open('./contract_abi.json', 'r') as f: 
 			contract_abi = json.load(f)
 		
 		contract_address = os.getenv("CONTRACT_ADDRESS")
@@ -343,6 +341,8 @@ class Connector:
 				file["file_chunks"].append(chunk)
 
 			list_file.append(file)
+		
+		return list_file
 
 
 	def upload_file(self, file_json):  
@@ -603,4 +603,3 @@ Root hash pool:
 	0x5808f6d31f38b0557f3e0d3c3a3ec1e0e57f0ee9b31d1ab2662b2f16b47b0565
 	0x5f5bb5f5e0648b04988ec1dd0c157a90a79871a8c31bf170d94c33a7f62fb955
 '''
-

@@ -26,12 +26,10 @@ import connector
 config_path = os.path.join(os.getcwd(), "server.json")
 PORT = 3000
 
-
 chunk_db_path = "chunks.db"
 log_db_path = "logs.db"
 node_db_path = "nodes.db"
 chunk_path = "./chunks"
-
 
 def connect_to_db(db_path):
     return sqlite3.connect(db_path)
@@ -63,7 +61,8 @@ def build_chunk_db(conn):
             chunkHash TEXT NOT NULL,
             chunkdata BLOB NOT NULL,
             createdAt DATETIME NOT NULL,
-            verified BOOLEAN NOT NULL
+            verified BOOLEAN NOT NULL,
+            removed BOOLEAN NOT NULL
         ) 
     """)
 
@@ -136,7 +135,7 @@ def get_chunk(conn, chunk_hash):
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT * FROM chunks where chunkHash=? AND verified=1 LIMIT 1", (chunk_hash, )
+        "SELECT * FROM chunks WHERE chunkHash=? AND verified=1 LIMIT 1", (chunk_hash, )
     )
 
     chunk = cursor.fetchone()
@@ -242,26 +241,64 @@ def download_chunk(hash):
 
         return response, 200
 
+@app.route("/chunk/<hash>/remove", method=["GET"])
+def delete_chunk(hash):
+    chunk_db_conn = connect_to_chunk_db()
+    log_conn = connect_to_log_db()
+
+    remove_chunk(chunk_db_conn, hash)
+    log()
+    
+    return f"Chunk {hash} has been removed.", 200
+
+@app.route("/chunk/<hash>/check", method=["GET"])
+def check_chunk(hash):
+    chunk_db_conn = connect_to_chunk_db()
+    log_conn = connect_to_log_db()
+    chunk = get_chunk(chunk_db_conn, hash)
+
+    log(log_conn, f"checking the status of chunk {hash}", "VERIFY")
+    # chunk is not found
+    if chunk is None:
+        return f"chunk {hash} is not found.", 404
+
+    # chunk is not verified
+    elif chunk[4] == 0:
+        return f"chunk {hash} is not verified.", 200
+    
+    # chunk is removed 
+    elif chunk[5] == 0:
+        return f"chunk {hash} is removed.", 200
+    
+    
+    return f"chunk {hash} is valid.", 400
+         
+
 @app.route("/chunk/verify", methods=["GET"])
 def verify_chunks():
-    
     #all_chunks = fetch_chunks(app.config["UUID"])
 
     chunk_db_conn = connect_to_chunk_db()
     log_conn = connect_to_log_db()
+    contract_conn = connector.Connector()
 
     # TODO: VERIFY ALL NON_VERIFIED CHUNKS BY LISTING ALL CHUNKS FROM SMART CONTRACT
     chunks_to_verify = get_unverified_chunks(chunk_db_conn)
+    all_files = contract_conn.list_all_file()
+    
+    # all_files {1,2,3,4,5,6}
     
     for unverified_chunk in chunks_to_verify:
         # check records on blockchain for these unverified chunks 
         # pending connector method 03282023
         pass
+        
 
     db_execute(chunk_db_conn, """
         UPDATE chunks
         SET verified=1
     """)
+
     log(log_conn, "All chunks has been verified.", "UPLOAD")
     chunk_db_conn.close()
 
@@ -336,12 +373,16 @@ def boot():
     return config
 
     
-
 if __name__ == "__main__":
-    #create dbs
 
+    if len(sys.argv) > 1:
+        PORT = int(sys.argv[-1])
+    
+
+    #booting up node
     config = boot()
 
+    #create dbs
     if not os.path.exists(os.path.join(os.getcwd(), chunk_db_path)):
         build_chunk_db(connect_to_chunk_db()).close()        
     if not os.path.exists(os.path.join(os.getcwd(), node_db_path)):
