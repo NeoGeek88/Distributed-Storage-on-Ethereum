@@ -186,6 +186,9 @@ class Client:
         # Save AES key to local storage
         self.save_aes_key(file_name,enc_aes_key)
 
+        # Convert the encrypted key to a base64-encoded string
+        enc_aes_key_b64 = base64.b64encode(enc_aes_key).decode('utf-8')
+
         #key = self.get_aes_key(file_name)
 
         # Store chunk list for server
@@ -210,7 +213,14 @@ class Client:
         #available_nodes = self.get_available_nodes()
 
         # Get available nodes from SC
-        available_nodes = self.connector.list_nodes()
+        available_nodes_metadata = json.loads(self.connector.list_nodes())
+
+        # Get available node list
+        available_nodes = []
+        for available_node_metadata in available_nodes_metadata:
+            available_nodes.append(available_node_metadata["node_id"])
+
+
 
         # randomly select nodes
         selected_nodes = np.random.choice(available_nodes, size=chunks_count, replace=True)
@@ -242,6 +252,7 @@ class Client:
             "file_name": file_name,
             "file_size": file_size,
             "root_hash": root_hash,
+            "key": enc_aes_key_b64,
             "file_chunks": [{"chunk_hash": chunk_hash.hex(), "node_id": node_id} for chunk_hash, node_id in
                             zip(hashed_chunks, selected_nodes)]
         }
