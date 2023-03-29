@@ -365,12 +365,45 @@ contract DS is Context, Ownable {
      * Output: true if pass the proof, false if did not pass the proof.
      */
     function performMerkleProof(
-        bytes32[] memory proof, 
         bytes32 root, 
         bytes32 leaf, 
         uint256 index
-    ) public view hasActiveNode() returns (bool) {
-        return MerkleProof.verify(proof, root, leaf, index);
+    ) public view returns (bool) {
+        require(_fileList[root].owner != address(0), "File do not exist!");
+        File memory file = _fileList[root];
+        uint256 n = file.fileChunks.length;
+        uint256 len = file.fileChunks.length;
+        while (n > 1) {
+            n = n / 2 + n % 2;
+            len += n;
+        }
+
+        bytes32[] memory _merkleTree = new bytes32[](len);
+        for(uint256 i = 0; i < file.fileChunks.length; i++) {
+            _merkleTree[i] = file.fileChunks[i].chunkHash;
+        }
+
+        uint256 merkleTreeIndex = file.fileChunks.length;
+        n = file.fileChunks.length;
+        uint256 offset = 0;
+
+        while (n > 1) {
+            for(uint256 i = 0; i < n-1; i+=2){
+                _merkleTree[merkleTreeIndex] = keccak256(abi.encodePacked(_merkleTree[offset+i], _merkleTree[offset+i+1]));
+                merkleTreeIndex++;
+            }
+            if(n % 2 != 0){
+                _merkleTree[merkleTreeIndex] = _merkleTree[offset+n-1];
+                merkleTreeIndex++;
+            }
+            offset += n;
+            n = n / 2 + n % 2;
+        }
+
+        bytes32[] memory _proof = MerkleProof.buildProof(_merkleTree, index, file.fileChunks.length);
+
+
+        return MerkleProof.verify(_proof, root, leaf, index);
     }
 
     /*

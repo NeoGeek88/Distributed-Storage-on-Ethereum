@@ -57,21 +57,12 @@ class Connector:
 	def file_preprocess(self, file_json):
 		'''
 		Purpose: Pre-check the provided file details before making the transaction. 
-		Input: File details including key (encrypted AES key), file name, file size, file root hash, file chunks info.
+		Input: File details includes file name, file size, chunk size, redundancy, file root hash, file chunks info.
 		Output: Argument list for calling corresponding smart contract function + Error message.
 		'''
 		file_details = json.loads(file_json)
 
 		# =========== FILE PRE-PRECESSING ===========
-		# Encrypted AES key should be provided and should not be empty string.
-		if ("key" in file_details) and (file_details["key"] is not None):
-			if file_details["key"]:
-				key = file_details["key"] 
-			else: 
-				return {"args": None, "err": "ENCRYPTED AES KEY SHOULD NOT BE EMPTY."}
-		else:
-			return {"args": None, "err": "MISSING ENCRYPTED AES KEY."}
-
 		# File name should be provided and should not be empty string.
 		if ("file_name" in file_details) and (file_details["file_name"] is not None):
 			if file_details["file_name"]:
@@ -94,6 +85,34 @@ class Connector:
 				return {"args": None, "err": "FILE SIZE SHOULD NOT BE EMPTY."}
 		else:
 			return {"args": None, "err": "MISSING FILE SIZE INFORMATION."} 
+
+		# Each file chunk size should be provided and should be interger (or should able to convert to integer).
+		if ("chunk_size" in file_details) and (file_details["chunk_size"] is not None):
+			if file_details["chunk_size"]:
+				try:
+					chunk_size = int(file_details["chunk_size"])
+					if chunk_size < 0:
+						return {"args": None, "err": "CHUNK SIZE SHOULD NOT LESS THAN 0 BYTE."}
+				except ValueError:
+					return {"args": None, "err": "CHUNK SIZE SHOULD BE INTEGER."}                
+			else:
+				return {"args": None, "err": "CHUNK SIZE SHOULD NOT BE EMPTY."}
+		else:
+			return {"args": None, "err": "MISSING CHUNK SIZE INFORMATION."} 
+
+		# Each file redundancy should be provided and should be interger (or should able to convert to integer).
+		if ("redundancy" in file_details) and (file_details["redundancy"] is not None):
+			if file_details["redundancy"]:
+				try:
+					redundancy = int(file_details["redundancy"])
+					if redundancy < 0:
+						return {"args": None, "err": "REDUNDANCY SHOULD NOT LESS THAN 0."}
+				except ValueError:
+					return {"args": None, "err": "REDUNDANCY SHOULD BE INTEGER."}                
+			else:
+				return {"args": None, "err": "REDUNDANCY SHOULD NOT BE EMPTY."}
+		else:
+			return {"args": None, "err": "MISSING REDUNDANCY INFORMATION."} 
 
 		# File root hash should be provided and should be 32-byte hex string. 
 		if ("root_hash" in file_details) and (file_details["root_hash"] is not None):
@@ -136,9 +155,10 @@ class Connector:
 			return {"args": None, "err": "MISSING FILE CHUNKS INFORMATION."}
 
 		args = [
-			key,
 			file_name,
 			file_size,
+			chunk_size,
+			redundancy,
 			root_hash,
 			file_chunks
 		]
@@ -245,7 +265,7 @@ class Connector:
 		function_args = func_args
 
 		# Build transaction.
-		nonce = self.w3.eth.get_transaction_count(os.getenv("WALLET_PUBLIC_KEY"))
+		nonce = self.w3.eth.get_transaction_count(os.getenv("WALLET_PUBLIC_ADDRESS"))
 		gas_price = self.w3.eth.gas_price
 
 		encoded_data = self.contract.encodeABI(fn_name=function_name, args=function_args)
@@ -253,7 +273,7 @@ class Connector:
 		tx = self.contract.functions[function_name](*function_args).build_transaction({
 			"nonce": nonce,
 			'gasPrice': gas_price,
-			'from': os.getenv("WALLET_PUBLIC_KEY")   
+			'from': os.getenv("WALLET_PUBLIC_ADDRESS")   
 		})
 
 		tx['gas'] = self.w3.eth.estimate_gas(tx)
@@ -275,7 +295,7 @@ class Connector:
 		Output: Return True if file exists, otherwise false.
 		'''
 		is_exists = self.contract.functions.fileExists(root_hash).call({
-			"from": os.getenv("WALLET_PUBLIC_KEY")
+			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 
 		return is_exists
@@ -287,21 +307,22 @@ class Connector:
 		Output: The metadata of all files that current address owns.
 		'''
 		raw_list_file = self.contract.functions.listFiles().call({
-			"from": os.getenv("WALLET_PUBLIC_KEY")
+			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 
 		list_file = []
 		for f in raw_list_file:
 			file = {}
-			file["key"] = f[0]
-			file["owner"] = f[1]
-			file["file_name"] = f[2]
-			file["file_size"] = f[3]
-			file["root_hash"] = f[4].hex()
-			file["file_chunk_count"] = f[5]
+			file["owner"] = f[0]
+			file["file_name"] = f[1]
+			file["file_size"] = f[2]
+			file["chunk_size"] = f[3]
+			file["redundancy"] = f[4]
+			file["root_hash"] = f[5].hex()
+			file["file_chunk_count"] = f[6]
 
 			file["file_chunks"] = []
-			for c in f[6]:
+			for c in f[7]:
 				chunk = {}
 				chunk["chunk_hash"] = c[0].hex()
 				chunk["node_id"] = c[1]
@@ -320,21 +341,22 @@ class Connector:
 		Restriction: Only authorized addresses are able to call this function.
 		'''
 		raw_list_file = self.contract.functions.listAllFiles().call({
-			"from": os.getenv("WALLET_PUBLIC_KEY")
+			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 
 		list_file = []
 		for f in raw_list_file:
 			file = {}
-			file["key"] = f[0]
-			file["owner"] = f[1]
-			file["file_name"] = f[2]
-			file["file_size"] = f[3]
-			file["root_hash"] = f[4].hex()
-			file["file_chunk_count"] = f[5]
+			file["owner"] = f[0]
+			file["file_name"] = f[1]
+			file["file_size"] = f[2]
+			file["chunk_size"] = f[3]
+			file["redundancy"] = f[4]
+			file["root_hash"] = f[5].hex()
+			file["file_chunk_count"] = f[6]
 
 			file["file_chunks"] = []
-			for c in f[6]:
+			for c in f[7]:
 				chunk = {}
 				chunk["chunk_hash"] = c[0].hex()
 				chunk["node_id"] = c[1]
@@ -345,7 +367,7 @@ class Connector:
 
 	def upload_file(self, file_json):  
 		'''
-		Input: File details including file name, file size, file root hash, file chunks info.
+		Input: File details including file name, file size, chunk size, redundancy, file root hash, file chunks info.
 		Output: Transaction receipt with information such as transaction status (Success=1, Fail=0), or error message string if any.
 		'''
 		process_status = self.file_preprocess(file_json)
@@ -366,19 +388,20 @@ class Connector:
 		'''
 		# Check return value to see if file exist.
 		raw_retrieved_file = self.contract.functions.getFile(root_hash).call({
-			"from": os.getenv("WALLET_PUBLIC_KEY")
+			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 
 		retrieved_file = {}
-		retrieved_file["key"] = raw_retrieved_file[0]
-		retrieved_file["owner"] = raw_retrieved_file[1]
-		retrieved_file["file_name"] = raw_retrieved_file[2]
-		retrieved_file["file_size"] = raw_retrieved_file[3]
-		retrieved_file["root_hash"] = raw_retrieved_file[4].hex()
-		retrieved_file["file_chunk_count"] = raw_retrieved_file[5]
+		retrieved_file["owner"] = raw_retrieved_file[0]
+		retrieved_file["file_name"] = raw_retrieved_file[1]
+		retrieved_file["file_size"] = raw_retrieved_file[2]
+		retrieved_file["chunk_size"] = raw_retrieved_file[3]
+		retrieved_file["redundancy"] = raw_retrieved_file[4]
+		retrieved_file["root_hash"] = raw_retrieved_file[5].hex()
+		retrieved_file["file_chunk_count"] = raw_retrieved_file[6]
 
 		retrieved_file["file_chunks"] = []
-		for c in raw_retrieved_file[6]:
+		for c in raw_retrieved_file[7]:
 			chunk = {}
 			chunk["chunk_hash"] = c[0].hex()
 			chunk["node_id"] = c[1]
@@ -437,7 +460,7 @@ class Connector:
 		is_valid = self.is_valid_uuid(node_id)
 		if is_valid:
 			is_exists = self.contract.functions.nodeExists(node_id).call({
-				"from": os.getenv("WALLET_PUBLIC_KEY")
+				"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 			})
 
 			if is_exists:
@@ -454,7 +477,7 @@ class Connector:
 		Output: The information of all available nodes.
 		'''
 		raw_list_node = self.contract.functions.listNodes().call({
-			"from": os.getenv("WALLET_PUBLIC_KEY")
+			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 
 		list_node = []
@@ -494,7 +517,7 @@ class Connector:
 		Output: Node information
 		'''
 		raw_node = self.contract.functions.getNode(node_id).call({
-			"from": os.getenv("WALLET_PUBLIC_KEY")
+			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 
 		node = {}
@@ -521,19 +544,15 @@ class Connector:
 			return {"status": 0, "receipt": receipt}
 
 	
-	def merkle_proof(self, file_json, index, leaf_hash):
+	def merkle_proof(self, root_hash, leaf_hash, index):
 		'''
-		Input: File details including file name, file size, file root hash, file chunks info, and chunk index and the leaf hash to be proofed.
-		Output: boolean value inform whether the proof provided matches the root hash or not. 
+		Input: File root hash, chunk hash, and the index of the chunk.
+		Output: Boolean value inform whether the proof provided matches the root hash or not. 
 		'''
-		file_info = self.file_preprocess(file_json)
-		mt = MerkleTree(file_info["file_chunks"])
-		proof = mt.build_proof(index, len(file_info["file_chunks"]))
-		root_hash = file_info["root_hash"]
-		args = [proof, root_hash, leaf_hash, index]
+		args = [root_hash, leaf_hash, index]
 
-		raw_proof_result = self.contract.functions.getFile(args).call({
-			"from": os.getenv("WALLET_PUBLIC_KEY")
+		raw_proof_result = self.contract.functions.performMerkleProof(args).call({
+			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 		
 		proof_result = json.dumps(raw_proof_result)
