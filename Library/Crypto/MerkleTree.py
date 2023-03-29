@@ -2,10 +2,6 @@ from web3 import Web3, EthereumTesterProvider
 
 
 class MerkleTree:
-
-    # def __init__(self, chunk_list):
-    #     self.merkle_tree = self.build_merkle_tree(chunk_list)
-
     '''
     Perform keccak256 hash method same as Solidity function
     INPUT: data to be hashed and the data type (it should always be 'bytes' for smart contract)
@@ -20,8 +16,8 @@ class MerkleTree:
     Get the root hash for the input chunk list
     OUTPUT: HexBytes with length of 32, roothash for the file
     '''
-    def get_roothash(self, tree):
-        return tree[len(tree)-1]
+    def get_roothash(self):
+        return self.merkle_tree[len(self.merkle_tree)-1]
 
     '''
     Build the merkle tree with all intermediate hash values for further process
@@ -32,10 +28,7 @@ class MerkleTree:
         tree = []
         for chunk in chunk_list:
             #tree.append(self.keccak256(chunk, 'string'))
-            tree.append(bytes(chunk["chunk_hash"]))
-
-        # for chunk in chunk_list['file_chunks']:
-        #     tree.append(bytes.fromhex(chunk['chunk_hash']))
+            tree.append(bytes.fromhex(chunk["chunk_hash"]))
 
         n = len(tree)
         offset = 0
@@ -60,13 +53,16 @@ class MerkleTree:
         proof = []
         base = 0
         while index < len(self.merkle_tree)-1:
+            if index - base == length - 1:
+                pass
             if (index - base) % 2 == 0:
                 proof.append(self.merkle_tree[index+1])
             else:
                 proof.append(self.merkle_tree[index-1])
-            index = int((index - base) / 2) + base + length
-            base = base + length
-            length = int(length / 2) + length % 2
+
+            index = int((index - base) / 2) + base + length  # this is right
+            base = base + length # this is right
+            length = int(length / 2) + length % 2 # this is right
         #proof.append(tree[len(tree)-1])
         return proof
 
