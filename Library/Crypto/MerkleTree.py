@@ -32,7 +32,7 @@ class MerkleTree:
         tree = []
         for chunk in chunk_list:
             #tree.append(self.keccak256(chunk, 'string'))
-            tree.append(bytes.fromhex(chunk.chunk_hash[2:]))
+            tree.append(bytes.fromhex(chunk["chunk_hash"]))
 
         n = len(tree)
         offset = 0

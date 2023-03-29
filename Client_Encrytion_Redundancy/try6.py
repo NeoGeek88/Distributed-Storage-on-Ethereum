@@ -7,8 +7,8 @@ Original file is located at
     https://colab.research.google.com/github/NeoGeek88/Distributed-Storage-on-Ethereum/blob/yoyostudy/Client_Encrytion_Redundancy/try5_ipynb.ipynb
 """
 
-!pip3 install eth-keys
-!pip3 install eth-utils
+# !pip3 install eth-keys
+# !pip3 install eth-utils
 
 from eth_keys import keys
 from eth_utils import keccak, encode_hex, decode_hex
@@ -57,9 +57,9 @@ def varify_eth_keypair(given_private_key, given_public_addr):
 
 """Obtain the shared secret using the receiver's public key and the sender's private key"""
 
-!pip3 install pycryptodome
-!pip3 install py_ecc
-!pip3 install ecdsa
+# !pip3 install pycryptodome
+# !pip3 install py_ecc
+# !pip3 install ecdsa
 
 from Crypto.PublicKey import ECC
 from py_ecc import optimized_bls12_381 as b
@@ -94,7 +94,7 @@ def test_shared_secret(sender_pk, sender_sk, receiver_pk, receiver_sk):
 
 """Generate AES encryption key and MAC key based on the shared secret"""
 
-!pip3 install cryptography
+# !pip3 install cryptography
 
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
@@ -213,127 +213,6 @@ def ver_mac_tag(message, mac_tag, mac_key):
 def test_mac(enc_chunk, mac_key):
   old_mac_tag = gen_mac_tag(enc_chunk, mac_key)
   print(ver_mac_tag(enc_chunk, old_mac_tag, mac_key))
-
-"""Reed-Solomon Redundancy
-
-"""
-
-!pip3 install reedsolo
-
-from reedsolo import RSCodec
-
-# Create a test file with a size of 1MB
-import os
-
-chunk_size = 256 * 1024  # 256KB
-num_chunks = 4
-filename = 'test_file.bin'
-
-with open(filename, 'wb') as f:
-    for i in range(num_chunks):
-        chunk = os.urandom(chunk_size)
-        f.write(chunk)
-
-def split_data(data, block_size):
-    """Split data into fixed-size blocks"""
-    return [data[i:i+block_size] for i in range(0, len(data), block_size)]
-
-from reedsolo import RSCodec
-
-# Define the number of data chunks
-n = 4
-
-# Define the number of parity chunks
-m = 5
-
-# Define the size of each data chunk in bytes
-chunk_size = 256 * 1024
-
-# Define the number of parity symbols
-ecc_symbols = m - n
-
-# Initialize a Reed-Solomon codec with the specified number of parity symbols
-rs = RSCodec(ecc_symbols)
-
-# Read the input file into memory
-with open('test_file.bin', 'rb') as f:
-    data = f.read()
-
-# Pad the data to a multiple of the chunk size
-#data = pad_data(data, chunk_size * n)
-
-# Split the data into n chunks
-data_chunks = split_data(data, chunk_size)
-
-# Encode each data chunk using Reed-Solomon error correction
-encoded_chunks = []
-for chunk in data_chunks:
-    encoded_chunk = rs.encode(chunk)
-    encoded_chunks.append(encoded_chunk)
-print(len(encoded_chunks))
-print(len(encoded_chunks[0]))
-
-# Concatenate the encoded chunks into a single byte string
-encoded_data = bytearray()
-for encode_chunk in encoded_chunks:
-  encoded_data.extend(encoded_chunk)
-print(len(encoded_data))
-#encoded_data = b''.join(encoded_chunks)
-
-# Split the encoded data into m chunks, where the first n chunks are data chunks and the remaining m - n chunks are parity chunks
-encoded_data_chunks = split_data(encoded_data, chunk_size)
-print(len(encoded_data_chunks))
-
-# Transmit the encoded data chunks over a noisy communication channel
-
-# Receive the encoded data chunks
-
-# Reassemble the encoded data chunks into a single byte string
-received_data = b''.join(encoded_data_chunks)
-
-# Decode the received data using Reed-Solomon error correction
-try:
-    decoded_data = rs.decode(received_data)
-except ReedSolomonError:
-    print("Unable to decode data")
-
-# Split the decoded data into n original data chunks
-decoded_data_chunks = split_data(decoded_data, chunk_size)
-
-# Write the decoded data to the output file
-for i, chunk in enumerate(decoded_data_chunks):
-    with open(f'output_chunk_{i}', 'wb') as f:
-        f.write(chunk)
-
-def pad_data(data, block_size):
-    """Pad data to a multiple of block_size bytes using PKCS#7 padding"""
-    padding_len = block_size - len(data) % block_size
-    padding = bytes([padding_len]) * padding_len
-    return data + padding
-
-def unpad_data(data):
-    """Unpad PKCS#7 padded data"""
-    padding_len = data[-1]
-    return data[:-padding_len]
-
-def split_data(data, block_size):
-    """Split data into fixed-size blocks"""
-    return [data[i:i+block_size] for i in range(0, len(data), block_size)]
-
-def bytearray_to_int(bytearray_data):
-    """Convert a bytearray to a list of integers"""
-    return [int(x) for x in bytearray_data]
-
-def int_to_bytearray(int_data):
-    """Convert a list of integers/bytes to a bytearray"""
-    byte_data = bytearray()
-    for i in int_data:
-        if isinstance(i, int):
-            byte_data.append(i % 256)
-        else:
-            byte_data.append(i)
-    return byte_data
-  
 
 
 def split(self, fileBytearray, chunkSize):
