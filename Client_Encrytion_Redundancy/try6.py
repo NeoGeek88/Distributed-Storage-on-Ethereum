@@ -292,6 +292,7 @@ class file_handler():
     data_list = [aes_dec(chunk, enc_key) for chunk in enc_data_list]
     #6. combine the data_list
     recovered_content = combine(data_list)
+    return recovered_content
 
 def test():
   ##---------------- neo given
