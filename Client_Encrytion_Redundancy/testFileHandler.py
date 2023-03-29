@@ -4,6 +4,7 @@ import unittest
 from cryptography.fernet import Fernet
 from file_handler import FileHandler
 import random
+import json
 
 
 class TestFileHandler(unittest.TestCase):
@@ -120,6 +121,16 @@ class TestFileHandler(unittest.TestCase):
         self.assertEqual(file_content, recover_content)
         print("Test Passed: you can successfully upload a file to the cloud and download it from the cloud")
 
+    def test888(self, filePath, filePath2, writePath): 
+        with open(filePath, 'rb') as file:
+        # Load the JSON data from the file
+            data = json.load(file)
+        chunk_list = [bytearray(chunkinfo["chunk"],'utf-8') for chunkinfo in data["file_chunks"]  ]
+        with open(filePath2, 'rb') as file2:
+            data = json.load(file2)
+        aes_key = bytearray(data["storj2014.pdf"], 'utf-8')
+        self.file_handler.downloadFile(chunk_list, aes_key, writePath)
+
 
 
 if __name__ == "__main__":
@@ -130,8 +141,9 @@ if __name__ == "__main__":
     #testFile.testSC_RW("testFiles/storj2014.pdf", 'testFiles/testCopyPdf.pdf', 'pdf')
     #testFile.test_AES_ED()
     #testFile.testRSed()
-    testFile.testRSed_File()
+    #testFile.testRSed_File()
     #testFile.testUD("testFiles/storj2014.pdf", 'testFiles/testCopyPdf.pdf')
+    testFile.test888("testFiles/uploaded_file.json", "testFiles/aes_key.json", 'testFiles/test888.pdf')
 
     #filePath = "testFiles/storj2014.pdf"
     #testFile.testRW(filePath,'testFiles/testCopyPdf.pdf','pdf')
