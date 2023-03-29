@@ -521,18 +521,14 @@ class Connector:
 			return {"status": 0, "receipt": receipt}
 
 	
-	def merkle_proof(self, file_json, index, leaf_hash):
+	def merkle_proof(self, root_hash, leaf_hash, index):
 		'''
-		Input: File details including file name, file size, file root hash, file chunks info, and chunk index and the leaf hash to be proofed.
-		Output: boolean value inform whether the proof provided matches the root hash or not. 
+		Input: File root hash, chunk hash, and the index of the chunk.
+		Output: Boolean value inform whether the proof provided matches the root hash or not. 
 		'''
-		file_info = self.file_preprocess(file_json)
-		mt = MerkleTree(file_info["file_chunks"])
-		proof = mt.build_proof(index, len(file_info["file_chunks"]))
-		root_hash = file_info["root_hash"]
-		args = [proof, root_hash, leaf_hash, index]
+		args = [root_hash, leaf_hash, index]
 
-		raw_proof_result = self.contract.functions.getFile(args).call({
+		raw_proof_result = self.contract.functions.performMerkleProof(args).call({
 			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 		
