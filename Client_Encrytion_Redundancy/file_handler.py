@@ -7,7 +7,7 @@ Main Functionalities:
 1. Encryption - Decryption | Public
     - Problem: If I only use public encryption method to encrypt a large chunk (256KB), it will return error
     - Solution: Hybraid Encryption. AES encrypt the data chunk with a random key, and using public encryption/decryption to protect the key
-2. Redundancy - Recover | 
+2. Redundancy - Recover | Reed-Solomon
 ----------------------------
 API calls:
 Usage: Client to upload file:
@@ -38,6 +38,7 @@ from pyfinite import ffield
 import numpy as np
 from PyPDF2 import PdfFileReader
 import imghdr
+import reedsolo
 from reedsolo import RSCodec
 import numpy as np
 
@@ -51,7 +52,7 @@ class FileHandler():
         self.chunkSize = 262144
         self.__generateKeyPair()
         #self.crs = CRSErasureCode(data_size=262144, parity_size=2)
-        self.ecc_symbols = 30  # Number of error correction symbols
+        self.ecc_symbols = 100 # Number of error correction symbols
         self.rs = RSCodec(self.ecc_symbols)
 
     def uploadFile(self, local_file_path):
@@ -270,11 +271,9 @@ class FileHandler():
     
     def RSenc(self, encChunkList):
         encoded_data = []
-        print("Original chunk list has size -- ", len(encChunkList))
         for chunk in encChunkList:
             encoded_chunk = self.rs.encode(chunk)
             encoded_data.append(encoded_chunk)
-        print("Encoded chunk list has size -- ", len(encoded_data))
         return encoded_data
 
     def RSdec(self, rsencChunkList):
