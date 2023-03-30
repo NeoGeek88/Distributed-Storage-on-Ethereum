@@ -11,7 +11,10 @@ import asyncio
 from connector import Connector
 import base64
 from MerkleTree import MerkleTree
-from dotenv import  load_dotenv
+from dotenv import  load_dotenv, dotenv_values, set_key
+import try6
+from try6 import file_handler, gen_eth_public_key
+
 
 class Client:
     def __init__(self):
@@ -24,47 +27,171 @@ class Client:
         self.testUrl = "http://127.0.0.3:5000"
         self.testUrl_server = "http://localhost:3000/chunk"
         self.testUrl_verify = "http://localhost:3000/chunk/verify"
+        self.new_file_handler = try6.file_handler()
+        INFURA_NODE_ENDPOINT = "https://goerli.infura.io/v3/ebbdd1c32ec8415fa6784d4c59a17328"
+        CONTRACT_ADDRESS = "0x530fA5B4eD4234E91dc59BF3aC718B32958249cB"
+        WALLET_PUBLIC_ADDRESS = ""
+        WALLET_PRIVATE_KEY = ""
+        FILE_PUBLIC_KEY = ""
+        self.chunk_size = 262144
+        self.redundancy = 2
+
+        # Check if the .env file exists
+        if not os.path.exists('../.env'):
+            # If the .env file does not exist, create it and write the default values
+            print("There is no .env file in your directory, .env file has been created for you. Please restart")
+            with open('../.env', "w") as f:
+                f.write(f'INFURA_NODE_ENDPOINT="{INFURA_NODE_ENDPOINT}"\n')
+                f.write(f"CONTRACT_ADDRESS={CONTRACT_ADDRESS}\n")
+                f.write(f"WALLET_PUBLIC_ADDRESS={WALLET_PUBLIC_ADDRESS}\n")
+                f.write(f"WALLET_PRIVATE_KEY={WALLET_PRIVATE_KEY}\n")
+                f.write(f"FILE_PUBLIC_KEY={FILE_PUBLIC_KEY}\n")
+            return
+
 
         # Load environment variables from .env file
         load_dotenv()
 
-        # Get wallet public and private keys from environment variables
-        self.wallet_public_key = os.getenv("WALLET_PUBLIC_KEY")
-        self.wallet_private_key = os.getenv("WALLET_PRIVATE_KEY")
+        # # Get wallet public and private keys from environment variables
+        # self.wallet_public_address = os.getenv("WALLET_PUBLIC_ADDRESS")
+        # self.wallet_private_key = os.getenv("WALLET_PRIVATE_KEY")
+        #
+        # # Get file public and private keys from environment variables
+        # self.file_public_key = os.getenv("FILE_PUBLIC_KEY")
+        # #self.file_private_key = os.getenv("FILE_PRIVATE_KEY")
 
-        # Get file public and private keys from environment variables
-        self.file_public_key = os.getenv("FILE_PUBLIC_KEY")
-        self.file_private_key = os.getenv("FILE_PRIVATE_KEY")
-
-        # Check if wallet keys exist
-        if not self.wallet_public_key or not self.wallet_private_key:
-            # Ask user for wallet keys
-            questions = [
-                inquirer.Text('wallet_public_key', message="Enter your wallet public key:"),
-                inquirer.Text('wallet_private_key', message="Enter your wallet private key:")
-            ]
-            answers = inquirer.prompt(questions)
-
-            # Save wallet keys to environment variables
-            os.environ["WALLET_PUBLIC_KEY"] = answers['wallet_public_key']
-            os.environ["WALLET_PRIVATE_KEY"] = answers['wallet_private_key']
-
-            # Update instance variables with wallet keys
-            self.wallet_public_key = answers['wallet_public_key']
-            self.wallet_private_key = answers['wallet_private_key']
-        else:
-            print("Your wallet keys exist")
+        # # Check if wallet keys exist
+        # if not self.wallet_public_address or not self.wallet_private_key:
+        #     # Ask user for wallet keys
+        #     questions = [
+        #         inquirer.Text('wallet_public_address', message="Enter your wallet public address:"),
+        #         inquirer.Text('wallet_private_key', message="Enter your wallet private key:")
+        #     ]
+        #     answers = inquirer.prompt(questions)
+        #
+        #     # Save wallet keys to environment variables
+        #     os.environ["WALLET_PUBLIC_ADDRESS"] = answers['wallet_public_address']
+        #     os.environ["WALLET_PRIVATE_KEY"] = answers['wallet_private_key']
+        #
+        #     # Update instance variables with wallet keys
+        #     self.wallet_public_address = answers['wallet_public_address']
+        #     self.wallet_private_key = answers['wallet_private_key']
+        # else:
+        #     print("Your wallet keys exist")
 
         # Check if file keys exist
-        if not self.file_public_key or not self.file_private_key:
-            # Ask user to generate file keys
-            # TODO: Use key_generator or let user write the keys
-            print("Please check the .env file and provide your file encryption keys")
-            os._exit(0)
-        else:
-            print("Your file encryption keys exist")
+
+        # Get wallet public key from environment variable
+        self.wallet_public_address = os.getenv("WALLET_PUBLIC_ADDRESS")
+        if not self.wallet_public_address:
+            print("There is no wallet public address in your .env")
+            self.wallet_public_address = self.get_wallet_public_address()
+
+        # Get wallet private key from environment variable
+        self.wallet_private_key = os.getenv("WALLET_PRIVATE_KEY")
+        if not self.wallet_private_key:
+            print("There is no wallet private key in your .env")
+            self.wallet_private_key = self.get_wallet_private_key()
 
 
+        self.file_public_key = os.getenv("FILE_PUBLIC_KEY")
+        if not self.file_public_key:
+            print("There is no file public key in your .env. A file public key will be created based on your wallet private key")
+            self.file_public_key = self.get_file_public_key(self.wallet_private_key)
+
+    # Get wallet public key from user input
+    def get_wallet_public_address(self):
+        questions = [inquirer.Text('wallet_public_address', message="Please enter your wallet public address")]
+        answers = inquirer.prompt(questions)
+        wallet_public_address = answers['wallet_public_address']
+        check_if_exist_line = False
+        # Save to .env file
+        with open('../.env', "r") as f:
+            lines = f.readlines()
+        for i, line in enumerate(lines):
+            if line.startswith("WALLET_PUBLIC_ADDRESS"):
+                check_if_exist_line = True
+                lines[i] = f"WALLET_PUBLIC_ADDRESS={wallet_public_address}\n"
+
+        with open('../.env', "w") as f:
+            f.writelines(lines)
+
+        # If line not exist
+        if not check_if_exist_line:
+            with open('../.env', 'a') as f:
+                f.write(f"\nWALLET_PUBLIC_ADDRESS={wallet_public_address}")
+
+        #set_key('../.env', 'WALLET_PUBLIC_ADDRESS', wallet_public_address)
+
+        # with open('../.env', 'a') as f:
+        #     f.write(f"\nWALLET_PUBLIC_ADDRESS={wallet_public_address}")
+        return wallet_public_address
+
+    # Get wallet private key from user input
+    def get_wallet_private_key(self):
+        questions = [inquirer.Password('wallet_private_key', message="Please enter your wallet private key:")]
+        answers = inquirer.prompt(questions)
+        wallet_private_key = answers['wallet_private_key']
+        check_if_exist_line = False
+        # Save to .env file
+        with open('../.env', "r") as f:
+            lines = f.readlines()
+        for i, line in enumerate(lines):
+            if line.startswith("WALLET_PRIVATE_KEY"):
+                check_if_exist_line = True
+                lines[i] = f"WALLET_PRIVATE_KEY={wallet_private_key}\n"
+
+        with open('../.env', "w") as f:
+            f.writelines(lines)
+
+        # If line not exist
+        if not check_if_exist_line:
+            with open('../.env', 'a') as f:
+                f.write(f"\nWALLET_PRIVATE_KEY={wallet_private_key}")
+        #set_key('../.env', 'WALLET_PRIVATE_KEY', wallet_private_key)
+        # with open('.env', 'a') as f:
+        #     f.write(f"\nWALLET_PRIVATE_KEY={wallet_private_key}")
+        return wallet_private_key
+
+    # Get file public key by passing wallet_private_key
+    def get_file_public_key(self, wallet_private_key):
+        # Generate key by pass wallet_private_key
+        file_public_key = str(try6.gen_eth_public_key(wallet_private_key))
+        check_if_exist_line = False
+        # Save to .env file
+        with open('../.env', "r") as f:
+            lines = f.readlines()
+        for i, line in enumerate(lines):
+            if line.startswith("FILE_PUBLIC_KEY"):
+                check_if_exist_line = True
+                lines[i] = f"FILE_PUBLIC_KEY={file_public_key[2:]}\n"
+
+        with open('../.env', "w") as f:
+            f.writelines(lines)
+
+        # If line not exist
+        if not check_if_exist_line:
+            with open('../.env', 'a') as f:
+                f.write(f"\nFILE_PUBLIC_KEY={file_public_key[2:]}")
+        #set_key('../.env', 'FILE_PUBLIC_KEY', file_public_key)
+        # with open('.env', 'a') as f:
+        #     f.write(f"\nFILE_PUBLIC_KEY={file_public_key}")
+        return file_public_key
+
+    # def ask_for_wallet_keys(self):
+    #     questions = [
+    #         inquirer.Text('wallet_public_key', message="Enter your wallet public key:"),
+    #         inquirer.Text('wallet_private_key', message="Enter your wallet private key:")
+    #     ]
+    #     answers = inquirer.prompt(questions)
+    #
+    #     # Save wallet keys to .env file
+    #     with open('.env', 'a') as f:
+    #         f.write(f'\nWALLET_PUBLIC_KEY={answers["wallet_public_key"]}\n')
+    #         f.write(f'WALLET_PRIVATE_KEY={answers["wallet_private_key"]}\n')
+    #
+    #     self.wallet_public_key = answers['wallet_public_key']
+    #     self.wallet_private_key = answers['wallet_private_key']
 
     # Save AES key to local storage
     def save_aes_key(self, file_name, enc_aes_key):
@@ -181,13 +308,17 @@ class Client:
         file_size = os.path.getsize(file_path)
 
         # Encrypt, encode and split the file into chunks
-        chunk_list, enc_aes_key = self.file_handler.uploadFile(file_path)
+        #chunk_list, enc_aes_key = self.file_handler.uploadFile(file_path)
+        chunk_list, mac_tag_list = self.new_file_handler.uploader_helper(data,
+                                                                         self.wallet_private_key,
+                                                                         self.file_public_key,
+                                                                         chunkSize=self.chunk_size)
 
         # Save AES key to local storage
-        self.save_aes_key(file_name,enc_aes_key)
+        #self.save_aes_key(file_name,enc_aes_key)
 
         # Convert the encrypted key to a base64-encoded string
-        enc_aes_key_b64 = base64.b64encode(enc_aes_key).decode('utf-8')
+        #enc_aes_key_b64 = base64.b64encode(enc_aes_key).decode('utf-8')
 
         #key = self.get_aes_key(file_name)
 
@@ -252,7 +383,8 @@ class Client:
             "file_name": file_name,
             "file_size": file_size,
             "root_hash": root_hash,
-            "key": enc_aes_key_b64,
+            "chunk_size": self.chunk_size,
+            "redundancy": self.redundancy,
             "file_chunks": [{"chunk_hash": chunk_hash.hex(), "node_id": node_id} for chunk_hash, node_id in
                             zip(hashed_chunks, selected_nodes)]
         }
@@ -383,7 +515,7 @@ class Client:
 
     def check_files(self):
         # Get file metadata from smart contract
-        files_metadata = json.loads(self.connector.list_file())
+        files_metadata = json.loads(self.connector.list_all_file())
 
         # If user has no file
         if len(files_metadata) == 0:
