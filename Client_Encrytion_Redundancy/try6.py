@@ -215,7 +215,7 @@ def test_mac(enc_chunk, mac_key):
   print(ver_mac_tag(enc_chunk, old_mac_tag, mac_key))
 
 
-def split(self, fileBytearray, chunkSize):
+def split(fileBytearray, chunkSize):
     """
     Padding
     Chunks (List[bytearray]), each chunk has length = chunksize
@@ -226,7 +226,7 @@ def split(self, fileBytearray, chunkSize):
         chunk_list[-1].extend(bytearray(remain_bytes))
     return chunk_list
 
-def combine(self, chunkList):
+def combine(chunkList):
     """
     strip end 0s
     chunkList (List[bytearray]+padding) --> data (bytearray)
