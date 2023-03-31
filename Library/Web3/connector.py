@@ -585,10 +585,11 @@ if __name__ == '__main__':
 	
 	# ============= FILE ============
 	# Retrieve all files:
-	# receipt = conn.list_all_file()
+	receipt = conn.list_file()
 	
 	# Upload file:
-	# receipt = conn.upload_file('{"file_name": "Cloud", "file_size": "100", "root_hash": "0x52f215a01392f27cb930d13954f402a798cb63b67fa88a3d3a9c3649af10dc8b", "file_chunks": [{"chunk_hash":"0x5808f6d31f38b0557f3e0d3c3a3ec1e0e57f0ee9b31d1ab2662b2f16b47b0565", "node_id": "5338d5e4-6f3e-45fe-8af5-e2d96213b3f0"},{"chunk_hash":"0x5f5bb5f5e0648b04988ec1dd0c157a90a79871a8c31bf170d94c33a7f62fb955", "node_id": "e46b3dc7-11f2-4b9c-8693-3eae76c03735"}]}')
+ 	# file name, timestamp, file size, chunk size, redundancy, file root hash, file chunks info.
+	# receipt = conn.upload_file('{"file_name": "Cloud", "timestamp": 1, "file_size": "100", "chunk_size": 2, "redundancy": 1, "root_hash": "0x52f215a01392f27cb930d13954f402a798cb63b67fa88a3d3a9c3649af10dc8b", "file_chunks": [{"chunk_hash":"0x5808f6d31f38b0557f3e0d3c3a3ec1e0e57f0ee9b31d1ab2662b2f16b47b0565", "node_id": "5338d5e4-6f3e-45fe-8af5-e2d96213b3f0"},{"chunk_hash":"0x5f5bb5f5e0648b04988ec1dd0c157a90a79871a8c31bf170d94c33a7f62fb955", "node_id": "e46b3dc7-11f2-4b9c-8693-3eae76c03735"}]}')
 	
 	# Get single file:
 	# receipt = conn.retrieve_file("0x7f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6c")
@@ -610,7 +611,7 @@ if __name__ == '__main__':
 	# receipt = conn.node_preprocess('{"node_id": "d0cfa1b4-4f9b-4bb8-bb24-16c86b15f135", "ip_address": "8.8.8.8", "domain": "JK", "protocol": 0, "port": "2"}')
 	
 	# Check if node exist:
-	receipt = conn.is_node_exists("5338d5e4-6f3e-45fe-8af5-e2d96213b3f0")
+	# receipt = conn.is_node_exists("5338d5e4-6f3e-45fe-8af5-e2d96213b3f0")
 	# All active nodes:
 	# receipt = conn.list_nodes()
 
