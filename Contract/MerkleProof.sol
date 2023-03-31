@@ -36,15 +36,19 @@ library MerkleProof {
         
         bytes32[] memory _proof = new bytes32[](len);
         uint256 base = 0;
-        uint256 ind = 0;
+        uint256 proofIndex = 0;
         while (index < _merkleTree.length-1) {
             if ((index - base) % 2 == 0 && index - base < _chunkLength - 1) {
-                _proof[ind] = _merkleTree[index+1];
-                ind++;
+                _proof[proofIndex] = _merkleTree[index+1];
+                proofIndex++;
             }
             else if ((index - base) % 2 != 0){
-                _proof[ind] = _merkleTree[index-1];
-                ind++;
+                _proof[proofIndex] = _merkleTree[index-1];
+                proofIndex++;
+            }
+            else {
+                _proof[proofIndex] = bytes32(0);
+                proofIndex++;
             }
             index = (index - base) / 2 + base + _chunkLength;
             base = base + _chunkLength;
