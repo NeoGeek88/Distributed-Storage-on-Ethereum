@@ -658,7 +658,7 @@ class Client:
             # Upload the metadata to the smart contract, retrying up to 3 times if necessary
             while retry_count < 3:
                 # TODO: BYTES OR BYTES32?
-                receipt = self.connector.remove_file(json.dumps(selected_file_metadata["root_hash"]))
+                receipt = self.connector.remove_file(bytes(selected_file_metadata["root_hash"], "utf8"))
 
                 if receipt['status'] == 1:
                     print("File metadata uploaded to blockchain successfully!")
@@ -670,6 +670,8 @@ class Client:
             # Check if the upload was successful after retrying
             if receipt['status'] != 1:
                 print("Failed to upload file metadata to blockchain after 3 attempts. Aborting upload.")
+
+            return
 
 
 
