@@ -647,7 +647,7 @@ class Client:
 
             # Remove nodes from server
             # TODO: if failed, do sth
-            #self.remove_chunks_from_server(node_ips_server)
+            self.remove_chunks_from_server(node_ips_server)
 
             # Remove the file from the smart contract
             # receipt = await asyncio.wait_for(self.connector.remove_file(selected_file_metadata["root_hash"]), timeout=None)
