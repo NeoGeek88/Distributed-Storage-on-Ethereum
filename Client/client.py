@@ -28,8 +28,8 @@ class Client:
         self.testUrl_server = "http://localhost:3000/chunk"
         self.testUrl_verify = "http://localhost:3000/chunk/verify"
         self.new_file_handler = try6.file_handler()
-        INFURA_NODE_ENDPOINT = "https://goerli.infura.io/v3/ebbdd1c32ec8415fa6784d4c59a17328"
-        CONTRACT_ADDRESS = "0x530fA5B4eD4234E91dc59BF3aC718B32958249cB"
+        INFURA_NODE_ENDPOINT = "https://goerli.etherscan.io/address/0xc0c335b31df7c7bbe9298ad2b2bacd0777ebbdd4"
+        CONTRACT_ADDRESS = "0xc0C335b31df7C7BBe9298ad2b2BacD0777EBbdd4"
         WALLET_PUBLIC_ADDRESS = ""
         WALLET_PRIVATE_KEY = ""
         FILE_PUBLIC_KEY = ""
@@ -93,7 +93,7 @@ class Client:
             print("There is no wallet private key in your .env")
             self.wallet_private_key = self.get_wallet_private_key()
 
-
+        # Get file public key from file_handler
         self.file_public_key = os.getenv("FILE_PUBLIC_KEY")
         if not self.file_public_key:
             print("There is no file public key in your .env. A file public key will be created based on your wallet private key")
@@ -129,7 +129,7 @@ class Client:
 
     # Get wallet private key from user input
     def get_wallet_private_key(self):
-        questions = [inquirer.Password('wallet_private_key', message="Please enter your wallet private key:")]
+        questions = [inquirer.Password('wallet_private_key', message="Please enter your wallet private key")]
         answers = inquirer.prompt(questions)
         wallet_private_key = answers['wallet_private_key']
         check_if_exist_line = False
@@ -515,7 +515,8 @@ class Client:
 
     def check_files(self):
         # Get file metadata from smart contract
-        files_metadata = json.loads(self.connector.list_all_file())
+        #files_metadata = json.loads(self.connector.list_file())
+        files_metadata = self.connector.list_file()
 
         # If user has no file
         if len(files_metadata) == 0:
