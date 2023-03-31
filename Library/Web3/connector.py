@@ -11,7 +11,7 @@ class Connector:
 	def __init__(self):
 		# Load the environment variables from the .env file.
 		# TODO: might not need .env in the future i guesss
-		load_dotenv('../.env')
+		load_dotenv("E:\programming\courses\cmpt456\Distributed-Storage-on-Ethereum/.env")
 
 		# Connect to the Ethereum blockchain via remote node provider.
 		self.w3 = Web3(Web3.HTTPProvider(os.getenv("INFURA_NODE_ENDPOINT")))
