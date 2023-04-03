@@ -16,17 +16,19 @@ import hmac
 class FileHandler:
     
     def __init__(self, eth_address, private_key, chunk_size = 262144, redundancy = 2, shared_public_key = None) -> None:
-       self.eth_address = eth_address
-       self.public_key = self.gen_eth_public_key(private_key)
-       self.private_key = private_key
-       if not self.verify_eth_keypair(self.private_key, self.gen_eth_public_address(self.public_key)):
-           raise Exception("Invalid Ethereum Address<->Private Key pair!")
-       if shared_public_key != None:
-           self.shared_public_key = shared_public_key
-       else:
-           self.shared_public_key = None
-       self.chunk_size = chunk_size
-       self.redundancy = redundancy
+        self.eth_address = eth_address
+        self.public_key = self.gen_eth_public_key(private_key)
+        self.private_key = private_key
+        if not self.verify_eth_keypair(self.private_key, self.gen_eth_public_address(self.public_key)):
+            raise Exception("Invalid Ethereum Address<->Private Key pair!")
+        if shared_public_key != None:
+            self.shared_public_key = shared_public_key
+        else:
+            self.shared_public_key = None
+        if chunk_size % 16 != 0:
+            raise Exception("The chunk size must be multiple of 16!")
+        self.chunk_size = chunk_size
+        self.redundancy = redundancy
 
 
     def gen_eth_public_key(self, private_key):
@@ -312,13 +314,13 @@ class FileHandler:
         return recovered_data_chunks
 
 
-    def uploader_helper(self, file_content, chunkSize = 262144):
+    def uploader_helper(self, file_content):
         """
         Parameters:
         file_content : bytearray
         sender_sk
         receiver_pk
-        chunkSize: 262144 (256 KB) # you can also modify it
+        chunkSize: 262144 (256 KB)
         """
         sender_sk = self.private_key[2:]
         if self.shared_public_key == None:
@@ -331,23 +333,23 @@ class FileHandler:
         #2. obtain the encryption key and the mac key
         enc_key, mac_key = self.gen_aes_mac_key(shared_secret)
         #3. split the data into chunks
-        chunk_list = self.split(file_content, chunkSize)
+        chunk_list = self.split(file_content, self.chunk_size)
         #4. encrypt the file content using the encryption key
         enc_data_list = [self.aes_enc(chunk, enc_key) for chunk in chunk_list]
-        #5. redundancy || NOT COMPLETE
+        #5. redundancy using reedsolomon encoding
         rs_data_list = self.rs_enc(enc_data_list)
         #6. generate mac tag for each of the data chunk
         mac_tag_list = [self.gen_mac_tag(chunk, mac_key) for chunk in rs_data_list]
         return (rs_data_list, mac_tag_list)
 
-    def downloader_helper(self, rs_data_list, file_size, chunkSize = 262144):
+    def downloader_helper(self, rs_data_list, file_size):
         """
         Parameters:
         rs_data_list
         mac_tag_list
         receiver_sk
         sender_pk
-        chunkSize: 262144 (256 KB) # you can also modify it
+        chunkSize: 262144 (256 KB)
         Returns:
         recovered_content: bytearray
         """
@@ -370,7 +372,7 @@ class FileHandler:
             if not verif_flag:
                 print("block {} has been tampered", i)
         '''
-        #4. recover using reedsolomon redundancy method || NOT complete
+        #4. recover using reedsolomon redundancy method
         enc_data_list = self.rs_dec(rs_data_list, file_size)
         #5. decrypt the file chunk using the symmetric encryption key
         data_list = [self.aes_dec(chunk, enc_key) for chunk in enc_data_list]
