@@ -7,6 +7,8 @@ Original file is located at
     https://colab.research.google.com/github/NeoGeek88/Distributed-Storage-on-Ethereum/blob/yoyostudy/Client_Encrytion_Redundancy/try5_ipynb.ipynb
 """
 
+# !pip3 install eth-keys
+# !pip3 install eth-utils
 
 from eth_keys import keys
 from eth_utils import keccak, encode_hex, decode_hex
@@ -27,7 +29,7 @@ def gen_eth_public_key(private_key):
   """
   This function is to generate ethereum public key given a private key
   """
-  private_key = keys.PrivateKey(bytes.fromhex(private_key))
+  private_key = keys.PrivateKey(bytes.fromhex(private_key[2:]))
   public_key = private_key.public_key
   return public_key
 
@@ -46,7 +48,7 @@ def gen_eth_public_address(public_key):
 
 def varify_eth_keypair(given_private_key, given_public_addr):
   """
-  This function is used to verify whether the
+  This function is used to verify whether the 
   (public address, private key) is a valid pair in ethereum.
   """
   public_key = gen_eth_public_key(given_private_key)
@@ -103,7 +105,7 @@ def gen_aes_mac_key(shared_secret):
   This function is to generate the aes encryption key and the mac key using the shared secret
   Method:
     KDF
-  Parameter:
+  Parameter: 
     shared_secret 32 bytes (256 bit)
   Returns:
     aes_key: 32 bytes
@@ -134,7 +136,7 @@ def aes_enc(chunk, aes_key):
     Method:
       CBC-AES block cipher + #PKCS#7 padding + 16 zero bytes IV
     Parameters:
-      chunk
+      chunk 
       aes_key 256 bit
     Returns:
       enc_chunk (chunk of padded size)
@@ -185,7 +187,7 @@ def gen_mac_tag(message, mac_key):
   Method:
     HAMC-SHA256
   Parameters:
-     message
+     message 
      mac_key 32bytes
   Returns:
      mac_tag 32bytes
@@ -200,7 +202,7 @@ def ver_mac_tag(message, mac_tag, mac_key):
   Method:
     HAMC-SHA256
   Parameters:
-     message
+     message 
      mac_tag 32bytes
   Returns:
      mac_key 32bytes
@@ -224,7 +226,7 @@ def split(fileBytearray, chunkSize):
         chunk_list[-1].extend(bytearray(remain_bytes))
     return chunk_list
 
-def combine(self, chunkList):
+def combine(chunkList):
     """
     strip end 0s
     chunkList (List[bytearray]+padding) --> data (bytearray)
@@ -240,7 +242,7 @@ class file_handler():
   def __init__(self):
     pass
 
-  def uploader_helper(self, file_content, sender_sk, receiver_pk, chunkSize = 262144):
+  def uploader_helper(self, file_content, sender_sk, receiver_pk,chunkSize=262144):
     """
     Parameters:
       file_content : bytearray
@@ -292,49 +294,49 @@ class file_handler():
     recovered_content = combine(data_list)
     return recovered_content
 
-# def test():
-#   ##---------------- neo given
-#   public_addr_1 = "0xD4cdE7b7480CC3228D3725FB1b8D8d4226267bA3"
-#   private_key_1 = "0x7004f17e0cab05642f36e8ddb30b778c4ba5b6d2bc2a17338aaff3b26c55e241"
-#   public_key_1 = "0x47d9eab50b1eabd3f493e807ba3ff22f387dcf146430e31f42c98b7ec7fbc9a40eef2080249846ca63521da29f0bcaa2049a0105cbd865d91973059a10d00daa"
-#   ##---------------- neo given
-#   public_addr_2 =  "0x290FABa2538A49e641e92f330CCA5afc1Ff2076C"
-#   private_key_2 =  "0xb6c5753277f0f69e8f66196293772ce624d90a58edbfd9275ec426744ecd2dcf"
-#   public_key_2 = "0xa4c6fcffb1411ba3c5335f9971114603d4c58f3b53e149f1a78128de50f475f2a2b22b780c9a94c83e4de662f54fd826a239633a0e3cb0c4537f591a70a386c0"
-#   ##---------------- neo given
-#   public_addr_3 = "0x58148928Cc24aA0f4025F171cDF958eA24143211"
-#   private_key_3 = "0x4a561ed4832e2787355f63010ffa05453bf190b7f50b5aa8d01433a6a4fbe67a"
-#   public_key_3 = "0x583f3823024eff1d6c19cd93a4b8fb48a3bd2d8e868ddcc26ffa99553046bbf77eb1fdb85d463b73d639ad395c7c7307d29510c1781032ef450c739d8415b1cc"
-#   ##---------------- yoyo generate
-#   public_addr_4 ="0x28AbB50DdB82da709E2e47Eef2ECAdAC5e230e83"
-#   private_key_4 = "0x3077020101042085af18963da3c5ae8e1b3f5315769048a1dd604968a3605fb9"
-#   public_key_4 ="0xaf1e8c0521f5bc7ce85a3b4c2e312cc2458b62db3f0a7660c285abaa77dc09d4d83a34074648e077ad9f1f217ce23921c47e5e0d7920ef6d5087f9a9bdb6fd59"
-#
-#   ##----------------
-#   ##test for varification of ethereum key pair
-#   varify_eth_keypair(private_key_4, public_addr_4)
-#   ##----------------
-#   ##test for shared
-#   test_shared_secret(public_key_3[2:], private_key_3[2:], public_key_2[2:], private_key_2[2:])
-#   test_shared_secret(public_key_3[2:], private_key_3[2:], public_key_1[2:], private_key_1[2:])
-#   ##----------------
-#   ##verify that the shared secret is 32 bytes
-#   shared_secret_23 = gen_shared_secret(private_key_2[2:],public_key_3[2:])
-#   print("the length of the shared secret between the sender 2 and the receiver 3 is", len(shared_secret_23))
-#   ##----------------
-#   ##verify that the aes key and the mac key is 32 bytes
-#   aes_key, mac_key = gen_aes_mac_key(shared_secret_23)
-#   print("the length of the aes key should be 32 bytes, in this test:", len(aes_key))
-#   print("the length of the mac key should be 32 bytes, in this test:", len(mac_key))
-#   ##----------------
-#   ##verify that the encryption/decryptin using an symmetric aes key is correct
-#   data_chunk = b'This is a sample data chunk that will be encrypted and decrypted using AES in CBC mode with PKCS#7 padding.'
-#   test_aes_encryption(data_chunk, aes_key)
-#   enc_chunk = aes_enc(data_chunk, aes_key)
-#   ##----------------
-#   ##verify that the generation and verification of the mac key is consistent
-#   test_mac(enc_chunk, mac_key)
-#   ##----------------
-#   ##reed-solomon redundancy
-#
-# test()
+def test():
+  ##---------------- neo given
+  public_addr_1 = "0xD4cdE7b7480CC3228D3725FB1b8D8d4226267bA3"
+  private_key_1 = "0x7004f17e0cab05642f36e8ddb30b778c4ba5b6d2bc2a17338aaff3b26c55e241"
+  public_key_1 = "0x47d9eab50b1eabd3f493e807ba3ff22f387dcf146430e31f42c98b7ec7fbc9a40eef2080249846ca63521da29f0bcaa2049a0105cbd865d91973059a10d00daa"
+  ##---------------- neo given 
+  public_addr_2 =  "0x290FABa2538A49e641e92f330CCA5afc1Ff2076C"
+  private_key_2 =  "0xb6c5753277f0f69e8f66196293772ce624d90a58edbfd9275ec426744ecd2dcf"           
+  public_key_2 = "0xa4c6fcffb1411ba3c5335f9971114603d4c58f3b53e149f1a78128de50f475f2a2b22b780c9a94c83e4de662f54fd826a239633a0e3cb0c4537f591a70a386c0"
+  ##---------------- neo given
+  public_addr_3 = "0x58148928Cc24aA0f4025F171cDF958eA24143211"
+  private_key_3 = "0x4a561ed4832e2787355f63010ffa05453bf190b7f50b5aa8d01433a6a4fbe67a"
+  public_key_3 = "0x583f3823024eff1d6c19cd93a4b8fb48a3bd2d8e868ddcc26ffa99553046bbf77eb1fdb85d463b73d639ad395c7c7307d29510c1781032ef450c739d8415b1cc"
+  ##---------------- yoyo generate
+  public_addr_4 ="0x28AbB50DdB82da709E2e47Eef2ECAdAC5e230e83"
+  private_key_4 = "0x3077020101042085af18963da3c5ae8e1b3f5315769048a1dd604968a3605fb9"
+  public_key_4 ="0xaf1e8c0521f5bc7ce85a3b4c2e312cc2458b62db3f0a7660c285abaa77dc09d4d83a34074648e077ad9f1f217ce23921c47e5e0d7920ef6d5087f9a9bdb6fd59"
+  
+  ##---------------- 
+  ##test for varification of ethereum key pair
+  varify_eth_keypair(private_key_4, public_addr_4)
+  ##----------------
+  ##test for shared
+  test_shared_secret(public_key_3[2:], private_key_3[2:], public_key_2[2:], private_key_2[2:])
+  test_shared_secret(public_key_3[2:], private_key_3[2:], public_key_1[2:], private_key_1[2:])
+  ##----------------
+  ##verify that the shared secret is 32 bytes
+  shared_secret_23 = gen_shared_secret(private_key_2[2:],public_key_3[2:])
+  print("the length of the shared secret between the sender 2 and the receiver 3 is", len(shared_secret_23))
+  ##----------------
+  ##verify that the aes key and the mac key is 32 bytes
+  aes_key, mac_key = gen_aes_mac_key(shared_secret_23)
+  print("the length of the aes key should be 32 bytes, in this test:", len(aes_key))
+  print("the length of the mac key should be 32 bytes, in this test:", len(mac_key))
+  ##----------------
+  ##verify that the encryption/decryptin using an symmetric aes key is correct
+  data_chunk = b'This is a sample data chunk that will be encrypted and decrypted using AES in CBC mode with PKCS#7 padding.'
+  test_aes_encryption(data_chunk, aes_key)
+  enc_chunk = aes_enc(data_chunk, aes_key)
+  ##----------------
+  ##verify that the generation and verification of the mac key is consistent
+  test_mac(enc_chunk, mac_key)
+  ##----------------
+  ##reed-solomon redundancy
+
+test()

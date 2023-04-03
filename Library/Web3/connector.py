@@ -11,13 +11,13 @@ class Connector:
 	def __init__(self):
 		# Load the environment variables from the .env file.
 		# TODO: might not need .env in the future i guesss
-		load_dotenv("E:\programming\courses\cmpt456\Distributed-Storage-on-Ethereum/.env")
+		load_dotenv("./.env")
 
 		# Connect to the Ethereum blockchain via remote node provider.
 		self.w3 = Web3(Web3.HTTPProvider(os.getenv("INFURA_NODE_ENDPOINT")))
 
 		# Load the contract ABI and contract address.
-		with open('E:\programming\courses\cmpt456\Distributed-Storage-on-Ethereum\Contract\contract_abi.json', 'r') as f:
+		with open('./Contract/contract_abi.json', 'r') as f: 
 			contract_abi = json.load(f)
 		
 		contract_address = os.getenv("CONTRACT_ADDRESS")
