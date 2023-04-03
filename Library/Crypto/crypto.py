@@ -235,7 +235,7 @@ class FileHandler:
     def rs_enc(self, data_chunks):
         """
         This function is to perform Reed Solomon encoding
-        WARNING: Since this is a pure-python implementation, the decoding is very much time-consuming
+        WARNING: Since this is a pure-python implementation, the encoding is very much time-consuming
         Average encoding speed for a 256KB trunk = 15 seconds.
         The speed can be optimized if using C library with more than 10x boost.
         Method:
