@@ -22,7 +22,10 @@ contract DS is Context, Ownable {
         address owner;
         string key;
         string fileName;
+        uint256 timestamp;
         uint256 fileSize;
+        uint256 chunkSize;
+        uint256 redundancy;
         bytes32 rootHash;
         uint256 fileChunkCount;
         FileChunk[] fileChunks;
@@ -47,16 +50,21 @@ contract DS is Context, Ownable {
      * Add new file and associate it with the owner via mapping (everyone can execute this function).
      */
     function addFile(
-        string memory _key,
-        string memory _fileName, 
-        uint256 _fileSize, 
-        bytes32 _rootHash, 
+        string memory _fileName,
+        uint256 _timestamp,
+        uint256 _fileSize,
+        uint256 _chunkSize,
+        uint256 _redundancy,
+        bytes32 _rootHash,
         FileChunk[] memory _fileChunks
     ) public returns(bool) {
         _fileList[_rootHash].owner = _msgSender();
         _fileList[_rootHash].key = _key;
         _fileList[_rootHash].fileName = _fileName;
+        _fileList[_rootHash].timestamp = _timestamp;
         _fileList[_rootHash].fileSize = _fileSize;
+        _fileList[_rootHash].chunkSize = _chunkSize;
+        _fileList[_rootHash].redundancy = _redundancy;
         _fileList[_rootHash].rootHash = _rootHash;
         _fileList[_rootHash].fileChunkCount = _fileChunks.length;
         for (uint256 i=0; i<_fileChunks.length; i++){
@@ -102,6 +110,7 @@ contract DS is Context, Ownable {
     /*
      * Retrieve information of all files stored in the smart contract, only active node can call this (for file consistency check). 
      */
+     /*
     function listAllFiles() public view hasActiveNode() returns (File[] memory) {
         File memory file;
         File[] memory files = new File[](_fullFileRootHashList.length);
@@ -111,6 +120,7 @@ contract DS is Context, Ownable {
         }
         return files;
     }
+    */
 
     /*
      * Retrive single file information from owner's file list. (only file owner is allowed to execute this function).
@@ -358,24 +368,58 @@ contract DS is Context, Ownable {
     /*
      * Check if the provided hash for a chunk (leaf) is a valid hash using merkle proof method.
      * Input:
-     * - proof: The hash array to perform the proof (check MerkleProof.py library)
      * - root: the file root hash
      * - leaf: the leaf hash for merkle proof
      * - index: the chunk index for this leaf
      * Output: true if pass the proof, false if did not pass the proof.
      */
     function performMerkleProof(
-        bytes32[] memory proof, 
         bytes32 root, 
         bytes32 leaf, 
         uint256 index
-    ) public view hasActiveNode() returns (bool) {
-        return MerkleProof.verify(proof, root, leaf, index);
+    ) public view returns (bool) {
+        require(_fileList[root].owner != address(0), "File do not exist!");
+        require(index < _fileList[root].fileChunks.length, "Index out of bound!");
+        File memory file = _fileList[root];
+        uint256 n = file.fileChunks.length;
+        uint256 len = file.fileChunks.length;
+        while (n > 1) {
+            n = n / 2 + n % 2;
+            len += n;
+        }
+
+        bytes32[] memory _merkleTree = new bytes32[](len);
+        for(uint256 i = 0; i < file.fileChunks.length; i++) {
+            _merkleTree[i] = file.fileChunks[i].chunkHash;
+        }
+
+        uint256 merkleTreeIndex = file.fileChunks.length;
+        n = file.fileChunks.length;
+        uint256 offset = 0;
+
+        while (n > 1) {
+            for(uint256 i = 0; i < n-1; i+=2){
+                _merkleTree[merkleTreeIndex] = keccak256(abi.encodePacked(_merkleTree[offset+i], _merkleTree[offset+i+1]));
+                merkleTreeIndex++;
+            }
+            if(n % 2 != 0){
+                _merkleTree[merkleTreeIndex] = _merkleTree[offset+n-1];
+                merkleTreeIndex++;
+            }
+            offset += n;
+            n = n / 2 + n % 2;
+        }
+
+        bytes32[] memory _proof = MerkleProof.buildProof(_merkleTree, index, file.fileChunks.length);
+
+
+        return MerkleProof.verify(_proof, root, leaf, index);
     }
 
     /*
      * kick a node by delete all node information from the smart contract. Only active node can call this function.
      */
+     /*
     function kickNode(string memory _nodeId) public hasActiveNode() returns (bool) {
         address owner = _nodeList[_nodeId].owner;
         for (uint256 i = 0; i < _nodeMapping[owner].length; i++) {
@@ -397,4 +441,5 @@ contract DS is Context, Ownable {
         delete _nodeList[_nodeId];
         return true;
     }
+    */
 }

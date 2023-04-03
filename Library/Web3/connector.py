@@ -57,21 +57,12 @@ class Connector:
 	def file_preprocess(self, file_json):
 		'''
 		Purpose: Pre-check the provided file details before making the transaction. 
-		Input: File details including key (encrypted AES key), file name, file size, file root hash, file chunks info.
+    Input: File details includes file name, timestamp, file size, chunk size, redundancy, file root hash, file chunks info.
 		Output: Argument list for calling corresponding smart contract function + Error message.
 		'''
 		file_details = json.loads(file_json)
 
 		# =========== FILE PRE-PRECESSING ===========
-		# Encrypted AES key should be provided and should not be empty string.
-		if ("key" in file_details) and (file_details["key"] is not None):
-			if file_details["key"]:
-				key = file_details["key"] 
-			else: 
-				return {"args": None, "err": "ENCRYPTED AES KEY SHOULD NOT BE EMPTY."}
-		else:
-			return {"args": None, "err": "MISSING ENCRYPTED AES KEY."}
-
 		# File name should be provided and should not be empty string.
 		if ("file_name" in file_details) and (file_details["file_name"] is not None):
 			if file_details["file_name"]:
@@ -80,6 +71,21 @@ class Connector:
 				return {"args": None, "err": "FILE NAME SHOULD NOT BE EMPTY."}
 		else:
 			return {"args": None, "err": "MISSING FILE NAME INFORMATION."}
+
+
+		# File timestamp should be provided and should be integer (or should able to convert to integer).
+		if ("timestamp" in file_details) and (file_details["timestamp"] is not None):
+			if file_details["timestamp"]:
+				try:
+					timestamp = int(file_details["timestamp"])
+					if timestamp < 0:
+						return {"args": None, "err": "FILE TIMESTAMP SHOULD NOT LESS THAN 0 BYTE."}
+				except ValueError:
+					return {"args": None, "err": "FILE TIMESTAMP SHOULD BE INTEGER."}
+			else: 
+				return {"args": None, "err": "FILE TIMESTAMP SHOULD NOT BE EMPTY."}
+		else:
+			return {"args": None, "err": "MISSING FILE TIMESTAMP INFORMATION."}
 
 		# File size should be provided and should be integer (or should able to convert to integer).
 		if ("file_size" in file_details) and (file_details["file_size"] is not None):
@@ -94,6 +100,35 @@ class Connector:
 				return {"args": None, "err": "FILE SIZE SHOULD NOT BE EMPTY."}
 		else:
 			return {"args": None, "err": "MISSING FILE SIZE INFORMATION."} 
+
+
+		# Each file chunk size should be provided and should be interger (or should able to convert to integer).
+		if ("chunk_size" in file_details) and (file_details["chunk_size"] is not None):
+			if file_details["chunk_size"]:
+				try:
+					chunk_size = int(file_details["chunk_size"])
+					if chunk_size < 0:
+						return {"args": None, "err": "CHUNK SIZE SHOULD NOT LESS THAN 0 BYTE."}
+				except ValueError:
+					return {"args": None, "err": "CHUNK SIZE SHOULD BE INTEGER."}                
+			else:
+				return {"args": None, "err": "CHUNK SIZE SHOULD NOT BE EMPTY."}
+		else:
+			return {"args": None, "err": "MISSING CHUNK SIZE INFORMATION."} 
+
+		# Each file redundancy should be provided and should be interger (or should able to convert to integer).
+		if ("redundancy" in file_details) and (file_details["redundancy"] is not None):
+			if file_details["redundancy"]:
+				try:
+					redundancy = int(file_details["redundancy"])
+					if redundancy < 0:
+						return {"args": None, "err": "REDUNDANCY SHOULD NOT LESS THAN 0."}
+				except ValueError:
+					return {"args": None, "err": "REDUNDANCY SHOULD BE INTEGER."}                
+			else:
+				return {"args": None, "err": "REDUNDANCY SHOULD NOT BE EMPTY."}
+		else:
+			return {"args": None, "err": "MISSING REDUNDANCY INFORMATION."} 
 
 		# File root hash should be provided and should be 32-byte hex string. 
 		if ("root_hash" in file_details) and (file_details["root_hash"] is not None):
@@ -136,9 +171,11 @@ class Connector:
 			return {"args": None, "err": "MISSING FILE CHUNKS INFORMATION."}
 
 		args = [
-			key,
 			file_name,
+			timestamp,
 			file_size,
+			chunk_size,
+			redundancy,
 			root_hash,
 			file_chunks
 		]
@@ -293,15 +330,17 @@ class Connector:
 		list_file = []
 		for f in raw_list_file:
 			file = {}
-			file["key"] = f[0]
-			file["owner"] = f[1]
-			file["file_name"] = f[2]
+			file["owner"] = f[0]
+			file["file_name"] = f[1]
+			file["timestamp"] = f[2]
 			file["file_size"] = f[3]
-			file["root_hash"] = f[4].hex()
-			file["file_chunk_count"] = f[5]
+			file["chunk_size"] = f[4]
+			file["redundancy"] = f[5]
+			file["root_hash"] = f[6].hex()
+			file["file_chunk_count"] = f[7]
 
 			file["file_chunks"] = []
-			for c in f[6]:
+			for c in f[8]:
 				chunk = {}
 				chunk["chunk_hash"] = c[0].hex()
 				chunk["node_id"] = c[1]
@@ -313,12 +352,14 @@ class Connector:
 		return list_file_json
 
 
+
+	''' (Deprecated)
 	def list_all_file(self):
-		'''
-		Input: None
-		Output: The metadata of all files that current address owns.
-		Restriction: Only authorized addresses are able to call this function.
-		'''
+		
+		# Input: None
+		# Output: The metadata of all files that current address owns.
+		# Restriction: Only authorized addresses are able to call this function.
+		
 		raw_list_file = self.contract.functions.listAllFiles().call({
 			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
@@ -326,26 +367,28 @@ class Connector:
 		list_file = []
 		for f in raw_list_file:
 			file = {}
-			file["key"] = f[0]
-			file["owner"] = f[1]
-			file["file_name"] = f[2]
-			file["file_size"] = f[3]
-			file["root_hash"] = f[4].hex()
-			file["file_chunk_count"] = f[5]
+			file["owner"] = f[0]
+			file["file_name"] = f[1]
+			file["file_size"] = f[2]
+			file["chunk_size"] = f[3]
+			file["redundancy"] = f[4]
+			file["root_hash"] = f[5].hex()
+			file["file_chunk_count"] = f[6]
 
 			file["file_chunks"] = []
-			for c in f[6]:
+			for c in f[7]:
 				chunk = {}
 				chunk["chunk_hash"] = c[0].hex()
 				chunk["node_id"] = c[1]
 				file["file_chunks"].append(chunk)
 
 			list_file.append(file)
+	'''
 
 
 	def upload_file(self, file_json):  
 		'''
-		Input: File details including file name, file size, file root hash, file chunks info.
+		Input: File details including file name, timestamp, file size, chunk size, redundancy, file root hash, file chunks info.
 		Output: Transaction receipt with information such as transaction status (Success=1, Fail=0), or error message string if any.
 		'''
 		process_status = self.file_preprocess(file_json)
@@ -370,15 +413,17 @@ class Connector:
 		})
 
 		retrieved_file = {}
-		retrieved_file["key"] = raw_retrieved_file[0]
-		retrieved_file["owner"] = raw_retrieved_file[1]
-		retrieved_file["file_name"] = raw_retrieved_file[2]
+		retrieved_file["owner"] = raw_retrieved_file[0]
+		retrieved_file["file_name"] = raw_retrieved_file[1]
+		retrieved_file["timestamp"] = raw_retrieved_file[2]
 		retrieved_file["file_size"] = raw_retrieved_file[3]
-		retrieved_file["root_hash"] = raw_retrieved_file[4].hex()
-		retrieved_file["file_chunk_count"] = raw_retrieved_file[5]
+		retrieved_file["chunk_size"] = raw_retrieved_file[4]
+		retrieved_file["redundancy"] = raw_retrieved_file[5]
+		retrieved_file["root_hash"] = raw_retrieved_file[6].hex()
+		retrieved_file["file_chunk_count"] = raw_retrieved_file[7]
 
 		retrieved_file["file_chunks"] = []
-		for c in raw_retrieved_file[6]:
+		for c in raw_retrieved_file[8]:
 			chunk = {}
 			chunk["chunk_hash"] = c[0].hex()
 			chunk["node_id"] = c[1]
@@ -397,14 +442,14 @@ class Connector:
 		process_status = self.file_preprocess(file_update_json)
 		if process_status["args"] is not None:
 
-			# Raw structure: [key, file_name, file_size, root_hash, file_chunks[]].
+			# Raw structure: [file_name, timestamp, file_size, chunk_size, redundancy, root_hash, file_chunks[]].
 			raw_args = process_status["args"]
 
 			# Reconstruct argument list: [root_hash, file_name, file_chunks[]].
 			args = [
-				raw_args[3], 
-				raw_args[1], 
-				raw_args[4]
+				raw_args[5], 
+				raw_args[0], 
+				raw_args[6]
 			]
 
 			receipt = self.sign_transaction("updateFile", args)
@@ -509,30 +554,28 @@ class Connector:
 		return node_json
 
 
+	''' (Deprecated)
 	def remove_node(self, node_id):  
-		'''
-		Input: Node id.
-		Output: Transaction receipt with information such as transaction status (Success=1, Fail=0).
-		'''
+		
+		# Input: Node id.
+		# Output: Transaction receipt with information such as transaction status (Success=1, Fail=0).
+		
 		receipt = self.sign_transaction("removeNode", [node_id])
 		if receipt["status"] == 1:
 			return {"status": 1, "receipt": receipt}
 		else:
 			return {"status": 0, "receipt": receipt}
+	'''
 
 	
-	def merkle_proof(self, file_json, index, leaf_hash):
+	def merkle_proof(self, root_hash, leaf_hash, index):
 		'''
-		Input: File details including file name, file size, file root hash, file chunks info, and chunk index and the leaf hash to be proofed.
-		Output: boolean value inform whether the proof provided matches the root hash or not. 
+		Input: File root hash, chunk hash, and the index of the chunk.
+		Output: Boolean value inform whether the proof provided matches the root hash or not. 
 		'''
-		file_info = self.file_preprocess(file_json)
-		mt = MerkleTree(file_info["file_chunks"])
-		proof = mt.build_proof(index, len(file_info["file_chunks"]))
-		root_hash = file_info["root_hash"]
-		args = [proof, root_hash, leaf_hash, index]
+		args = [root_hash, leaf_hash, index]
 
-		raw_proof_result = self.contract.functions.getFile(args).call({
+		raw_proof_result = self.contract.functions.performMerkleProof(args).call({
 			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 		
