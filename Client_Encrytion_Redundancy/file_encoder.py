@@ -39,41 +39,10 @@ import numpy as np
 from users import user
 
 
-class fileUploader(user):
+class fileEncoder():
 
 	def __init__(self):
-		self.accessUsers = user.accessUsers
-        
-    def readFile(self, filePath):
-        """
-        Reads the contents of a file in the specified format.
-
-        Parameters:
-        - filePath (str): The path and filename to read the file from.
-
-        Returns:
-        - The contents of the file as a bytearray.
-        """
-        with open(filePath, 'rb') as f:
-            file_bytes = f.read()
-
-        if filePath.endswith('.txt') or filePath.endswith('.csv') or filePath.endswith('.json'):
-            return file_bytes.decode().encode()
-        elif filePath.endswith('.pdf'):
-            # Read PDF as binary data
-            return file_bytes
-        elif filePath.endswith('.png'):
-            # Read PNG as binary data
-            return file_bytes
-        elif filePath.endswith('.zip'):
-            # Read ZIP archive
-            with zipfile.ZipFile(BytesIO(file_bytes)) as zf:
-                # Assume only one file in ZIP archive
-                filename = zf.namelist()[0]
-                with zf.open(filename) as f:
-                    return f.read()
-        else:
-            raise ValueError("Invalid file format")
+        pass
 
     def split(self, fileBytearray, chunkSize):
         """
@@ -113,6 +82,8 @@ class fileUploader(user):
     def enc_AES_key(self, publicKey,AES_key):
         """
         Public encryption for a 32 bytes AES key 
+        --------------------------------------
+        publicKey: the public key of the accessUsers
         """
         ekey = publicKey.encrypt(
             bytes(AES_key),
@@ -130,11 +101,13 @@ class fileUploader(user):
     		dict_enc_keys[user] = self.enc_AES_key(self, user.publicKey, AES_key)
     	return dict_enc_keys
 
-    def uploadFile(self, local_file_path):
+    def uploadFile(self, local_file_path, accessUsers):
         """
         Public function to Lawrence
         Return encoded_chunks, encrypted AES key
-        ( I can also give you hash values list, what do you want ?)
+        ---------------------------------
+        Parameters:
+        - accessUsers: accessUsers are authenticated users that are able to download the file
         ---------------------------------
         Steps only for me:
         1. read local file

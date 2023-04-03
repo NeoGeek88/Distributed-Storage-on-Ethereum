@@ -20,6 +20,7 @@ contract DS is Context, Ownable {
     // File metadata structure.
     struct File{
         address owner;
+        string key;
         string fileName;
         uint256 timestamp;
         uint256 fileSize;
@@ -58,6 +59,7 @@ contract DS is Context, Ownable {
         FileChunk[] memory _fileChunks
     ) public returns(bool) {
         _fileList[_rootHash].owner = _msgSender();
+        _fileList[_rootHash].key = _key;
         _fileList[_rootHash].fileName = _fileName;
         _fileList[_rootHash].timestamp = _timestamp;
         _fileList[_rootHash].fileSize = _fileSize;
