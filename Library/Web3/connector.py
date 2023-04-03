@@ -57,7 +57,7 @@ class Connector:
 	def file_preprocess(self, file_json):
 		'''
 		Purpose: Pre-check the provided file details before making the transaction. 
-    Input: File details includes file name, timestamp, file size, chunk size, redundancy, file root hash, file chunks info.
+		Input: File details includes file name, timestamp, file size, chunk size, redundancy, file root hash, file chunks info.
 		Output: Argument list for calling corresponding smart contract function + Error message.
 		'''
 		file_details = json.loads(file_json)
@@ -71,7 +71,6 @@ class Connector:
 				return {"args": None, "err": "FILE NAME SHOULD NOT BE EMPTY."}
 		else:
 			return {"args": None, "err": "MISSING FILE NAME INFORMATION."}
-
 
 		# File timestamp should be provided and should be integer (or should able to convert to integer).
 		if ("timestamp" in file_details) and (file_details["timestamp"] is not None):
@@ -100,7 +99,6 @@ class Connector:
 				return {"args": None, "err": "FILE SIZE SHOULD NOT BE EMPTY."}
 		else:
 			return {"args": None, "err": "MISSING FILE SIZE INFORMATION."} 
-
 
 		# Each file chunk size should be provided and should be interger (or should able to convert to integer).
 		if ("chunk_size" in file_details) and (file_details["chunk_size"] is not None):
@@ -350,7 +348,6 @@ class Connector:
 
 		list_file_json = json.dumps(list_file)
 		return list_file_json
-
 
 
 	''' (Deprecated)
