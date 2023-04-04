@@ -21,7 +21,7 @@ Usage: Client to download file:
 
 
 import io
-from PyPDF2 import PdfReader, PdfWriter
+#from PyPDF2 import PdfReader, PdfWriter
 #import hashlib
 import secrets
 import base64
@@ -34,9 +34,9 @@ import json
 from io import BytesIO
 #from PIL import Image
 import zipfile
-from pyfinite import ffield
-import numpy as np
-from PyPDF2 import PdfFileReader
+# from pyfinite import ffield
+# import numpy as np
+# from PyPDF2 import PdfFileReader
 import imghdr
 import reedsolo
 from reedsolo import RSCodec

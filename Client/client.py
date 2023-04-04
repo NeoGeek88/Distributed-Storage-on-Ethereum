@@ -11,16 +11,17 @@ import asyncio
 from connector import Connector
 import base64
 from MerkleTree import MerkleTree
-from dotenv import  load_dotenv, dotenv_values, set_key
-import try6
+from dotenv import load_dotenv, dotenv_values, set_key
+#import try6
 import time
-from try6 import file_handler, gen_eth_public_key
+from FileHandler import FileHandler
+#from try6 import file_handler, gen_eth_public_key
 
 
 class Client:
     def __init__(self):
         self.url = "https://"
-        self.file_handler = FileHandler()
+        #self.file_handler = FileHandler()
         # save aes key file
         self.aes_key_file = 'aes_key.json'
         self.connector = Connector()
@@ -28,12 +29,12 @@ class Client:
         self.testUrl = "http://127.0.0.3:5000"
         self.testUrl_server = "http://localhost:3000/chunk"
         self.testUrl_verify = "http://localhost:3000/chunk/verify"
-        self.new_file_handler = try6.file_handler()
+        #self.new_file_handler = try6.file_handler()
         INFURA_NODE_ENDPOINT = "https://sepolia.infura.io/v3/325c2e4f72b743a99bf8325760da19c5"
-        CONTRACT_ADDRESS = "0x70C251E437a894f57b07Ae8a8bed120c0bAbE223"
+        CONTRACT_ADDRESS = "0xc0c335b31df7c7bbe9298ad2b2bacd0777ebbdd4"
         WALLET_PUBLIC_ADDRESS = ""
         WALLET_PRIVATE_KEY = ""
-        FILE_PUBLIC_KEY = ""
+        #FILE_PUBLIC_KEY = ""
         self.chunk_size = 262144
         self.redundancy = 2
 
@@ -46,12 +47,12 @@ class Client:
                 f.write(f"CONTRACT_ADDRESS={CONTRACT_ADDRESS}\n")
                 f.write(f"WALLET_PUBLIC_ADDRESS={WALLET_PUBLIC_ADDRESS}\n")
                 f.write(f"WALLET_PRIVATE_KEY={WALLET_PRIVATE_KEY}\n")
-                f.write(f"FILE_PUBLIC_KEY={FILE_PUBLIC_KEY}\n")
+                #f.write(f"FILE_PUBLIC_KEY={FILE_PUBLIC_KEY}\n")
             return
 
 
         # Load environment variables from .env file
-        load_dotenv('E:\programming\courses\cmpt456\Distributed-Storage-on-Ethereum\.env')
+        load_dotenv('G:\\tool\\newproject\\Distributed-Storage-on-Ethereum\\.env')
 
         # # Get wallet public and private keys from environment variables
         # self.wallet_public_address = os.getenv("WALLET_PUBLIC_ADDRESS")
@@ -94,11 +95,16 @@ class Client:
             print("There is no wallet private key in your .env")
             self.wallet_private_key = self.get_wallet_private_key()
 
-        # Get file public key from file_handler
-        self.file_public_key = os.getenv("FILE_PUBLIC_KEY")
-        if not self.file_public_key:
-            print("There is no file public key in your .env. A file public key will be created based on your wallet private key")
-            self.file_public_key = self.get_file_public_key(self.wallet_private_key)
+        # # Get file public key from file_handler
+        # self.file_public_key = os.getenv("FILE_PUBLIC_KEY")
+        # if not self.file_public_key:
+        #     print("There is no file public key in your .env. A file public key will be created based on your wallet private key")
+        #     self.file_public_key = self.get_file_public_key(self.wallet_private_key)
+
+        self.new_file_handler = FileHandler(self.wallet_public_address, f'0x{self.wallet_private_key}')
+
+        #test = f'0x{self.wallet_private_key}'
+        #test1 = 0
 
     # Get wallet public key from user input
     def get_wallet_public_address(self):
@@ -335,10 +341,12 @@ class Client:
 
         # Encrypt, encode and split the file into chunks
         #chunk_list, enc_aes_key = self.file_handler.uploadFile(file_path)
-        chunk_list, mac_tag_list = self.new_file_handler.uploader_helper(data,
-                                                                         self.wallet_private_key,
-                                                                         self.file_public_key,
-                                                                         chunkSize=self.chunk_size)
+        # chunk_list, mac_tag_list = self.new_file_handler.uploader_helper(data,
+        #                                                                  self.wallet_private_key,
+        #                                                                  self.file_public_key,
+        #                                                                  chunkSize=self.chunk_size)
+
+        chunk_list = self.new_file_handler.uploader_helper(data)
 
         # Save AES key to local storage
         #self.save_aes_key(file_name,enc_aes_key)
@@ -350,12 +358,12 @@ class Client:
 
         # Store chunk list for server
         chunk_list_server = []
-        for chunk in chunk_list:
+        for chunk in chunk_list[0]:
             chunk_list_server.append(base64.b64encode(chunk).decode('utf-8'))
 
         # Hash each chunk in the list
         hashed_chunks = []
-        for chunk in chunk_list:
+        for chunk in chunk_list[0]:
             #hashed_chunk = MerkleTree(None).keccak256(bytes(chunk), 'bytes')
             hashed_chunk = self.merkletree.keccak256(bytes(chunk), 'bytes')
             hashed_chunks.append(hashed_chunk)
@@ -448,13 +456,13 @@ class Client:
         # Convert the metadata to JSON format for server
         #json_metadata_server = json.dumps(file_metadata_server)
 
-        # Upload the metadata to the server
-        response = self.upload_chunks_to_server(file_metadata_server)
-        #
-        if response.status_code == 200:
-            print("Chunks uploaded to server successfully!")
-        else:
-            print("Failed to upload chunks. Error code:", response.status_code)
+        # # Upload the metadata to the server
+        # response = self.upload_chunks_to_server(file_metadata_server)
+        # #
+        # if response.status_code == 200:
+        #     print("Chunks uploaded to server successfully!")
+        # else:
+        #     print("Failed to upload chunks. Error code:", response.status_code)
 
         # Upload the metadata to the smart contract
         #receipt = await asyncio.wait_for(connector.upload_file(json_metadata), timeout=None)
@@ -572,8 +580,8 @@ class Client:
 
         # Decode, decrypt, merge into a local file
         #self.file_handler.downloadFile(file_chunks, bytearray(enc_AES_key), download_path)
-        maclist = []
-        data = self.new_file_handler.downloader_helper(file_chunks, maclist, self.wallet_private_key, self.file_public_key)
+        #maclist = []
+        data = self.new_file_handler.downloader_helper(file_chunks, len(file_chunks))
 
         # Construct the file path
         file_path = os.path.join(download_path, selected_file_metadata['file_name'])
