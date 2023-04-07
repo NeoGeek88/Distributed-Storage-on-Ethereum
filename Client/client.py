@@ -1,4 +1,3 @@
-# import hashlib
 import json
 import inquirer
 import os
@@ -6,22 +5,22 @@ import numpy as np
 import requests
 from file_handler import FileHandler
 import connector
-# import merkletools
 import asyncio
 from connector import Connector
 import base64
 from MerkleTree import MerkleTree
 from dotenv import load_dotenv, dotenv_values, set_key
-#import try6
 import time
 from FileHandler import FileHandler
-#from try6 import file_handler, gen_eth_public_key
+import threading
+import time
+import random
+
 
 
 class Client:
     def __init__(self):
         self.url = "https://"
-        #self.file_handler = FileHandler()
         # save aes key file
         self.aes_key_file = 'aes_key.json'
         self.connector = Connector()
@@ -50,38 +49,8 @@ class Client:
                 #f.write(f"FILE_PUBLIC_KEY={FILE_PUBLIC_KEY}\n")
             return
 
-
         # Load environment variables from .env file
         load_dotenv('G:\\tool\\newproject\\Distributed-Storage-on-Ethereum\\.env')
-
-        # # Get wallet public and private keys from environment variables
-        # self.wallet_public_address = os.getenv("WALLET_PUBLIC_ADDRESS")
-        # self.wallet_private_key = os.getenv("WALLET_PRIVATE_KEY")
-        #
-        # # Get file public and private keys from environment variables
-        # self.file_public_key = os.getenv("FILE_PUBLIC_KEY")
-        # #self.file_private_key = os.getenv("FILE_PRIVATE_KEY")
-
-        # # Check if wallet keys exist
-        # if not self.wallet_public_address or not self.wallet_private_key:
-        #     # Ask user for wallet keys
-        #     questions = [
-        #         inquirer.Text('wallet_public_address', message="Enter your wallet public address:"),
-        #         inquirer.Text('wallet_private_key', message="Enter your wallet private key:")
-        #     ]
-        #     answers = inquirer.prompt(questions)
-        #
-        #     # Save wallet keys to environment variables
-        #     os.environ["WALLET_PUBLIC_ADDRESS"] = answers['wallet_public_address']
-        #     os.environ["WALLET_PRIVATE_KEY"] = answers['wallet_private_key']
-        #
-        #     # Update instance variables with wallet keys
-        #     self.wallet_public_address = answers['wallet_public_address']
-        #     self.wallet_private_key = answers['wallet_private_key']
-        # else:
-        #     print("Your wallet keys exist")
-
-        # Check if file keys exist
 
         # Get wallet public key from environment variable
         self.wallet_public_address = os.getenv("WALLET_PUBLIC_ADDRESS")
@@ -95,16 +64,108 @@ class Client:
             print("There is no wallet private key in your .env")
             self.wallet_private_key = self.get_wallet_private_key()
 
-        # # Get file public key from file_handler
-        # self.file_public_key = os.getenv("FILE_PUBLIC_KEY")
-        # if not self.file_public_key:
-        #     print("There is no file public key in your .env. A file public key will be created based on your wallet private key")
-        #     self.file_public_key = self.get_file_public_key(self.wallet_private_key)
-
+        # Pass wallet public address and private key to File Handler
         self.new_file_handler = FileHandler(self.wallet_public_address, f'0x{self.wallet_private_key}')
 
-        #test = f'0x{self.wallet_private_key}'
-        #test1 = 0
+        # Start the timer thread for verifying chunks
+        self.timer_thread = threading.Thread(target=self.verify_chunks_periodically, args=(), daemon=True)
+        self.timer_thread.start()
+
+    def verify_chunks_periodically(self):
+        # Define the interval between verification checks (in seconds)
+        interval = 3600
+
+        while True:
+            # Wait for the specified interval
+            time.sleep(interval)
+
+            # Get the files metadata from the network
+            files_metadata = json.loads(self.connector.list_file())
+
+            # Randomly select a file
+            selected_file_metadata = random.choice(files_metadata)
+
+            # Randomly select a chunk from the file
+            selected_chunk_metadata = random.choice(selected_file_metadata["file_chunks"])
+
+            # Get the hash of the selected chunk
+            selected_chunk_hash = selected_chunk_metadata["chunk_hash"]
+
+            # Get the node ID of the selected chunk
+            selected_node_id = selected_chunk_metadata["node_id"]
+
+            # Get the IP address of the node
+            selected_node_metadata = json.loads(self.connector.get_node(selected_node_id))
+            selected_node_ip = selected_node_metadata["ip_address"]
+
+            # Call Server function to get the hash of the chunk
+            # TODO: according to server's hask related api to input hash and get hash
+            response = requests.get(f"http://{selected_node_ip}/chunk/{selected_chunk_hash}")
+            if response.status_code != 200:
+                print("Error getting chunk hash")
+                continue
+            chunk_hash = response.json()["hash"]
+
+            # Get the index of the selected chunk
+            index = selected_file_metadata["file_chunks"].index(selected_chunk_metadata)
+
+            # Get the Merkle proof for the selected chunk
+            merkle_proof = self.connector.merkle_proof(selected_file_metadata["root_hash"], chunk_hash, index)
+
+            if merkle_proof:
+                print(f"Chunk {selected_chunk_hash} from file {selected_file_metadata['file_name']} is verified")
+            else:
+                print(f"Chunk {selected_chunk_hash} from file {selected_file_metadata['file_name']} failed verification")
+
+                # Extract node ids from the selected file metadata
+                node_ids = []
+                for chunk in selected_file_metadata["file_chunks"]:
+                    node_ids.append(chunk["node_id"])
+
+                # Get IP addresses of nodes
+                node_ips = {}
+                for node_id in node_ids:
+                    node_json = self.connector.get_node(node_id)
+                    node = json.loads(node_json)
+                    node_ips[node_id] = node["ip_address"]
+
+                # Construct the file metadata for the server
+                node_ips_server = {}
+                for chunk in selected_file_metadata["file_chunks"]:
+                    node_id = chunk["node_id"]
+                    chunk_hash = chunk["chunk_hash"]
+                    ip_address = node_ips[node_id]
+                    node_ips_server[chunk_hash] = ip_address
+
+                # Download chunks from server
+                file_chunks = self.download_chunks_from_server(node_ips_server)
+
+                # If the chunk is invalid, replace it with zeros into the corrected chunk
+                corrected_chunk = b'\x00' * self.chunk_size
+                file_chunks[index] = corrected_chunk
+
+                # Decode, decrypt, merge chunks
+                data = self.new_file_handler.downloader_helper(file_chunks, len(file_chunks))
+
+                file_name = selected_file_metadata['file_name']
+                file_size = selected_file_metadata['file_size']
+
+                # Split, Encrypt, Encode the file
+                chunk_list = self.new_file_handler.uploader_helper(data)
+
+                # TODO: may need to implement function to upload single chunk to server
+
+                # TODO: connector.update() to update on chain
+
+
+                # TODO: may need server update api to upload the chunk
+
+
+
+
+
+                # Reupload the file (with the failed chunk replaced)
+                self.upload_file_helper(selected_file_metadata["file_name"], file_chunks)
 
     # Get wallet public key from user input
     def get_wallet_public_address(self):
@@ -128,10 +189,6 @@ class Client:
             with open('../.env', 'a') as f:
                 f.write(f"\nWALLET_PUBLIC_ADDRESS={wallet_public_address}")
 
-        #set_key('../.env', 'WALLET_PUBLIC_ADDRESS', wallet_public_address)
-
-        # with open('../.env', 'a') as f:
-        #     f.write(f"\nWALLET_PUBLIC_ADDRESS={wallet_public_address}")
         return wallet_public_address
 
     # Get wallet private key from user input
@@ -155,80 +212,62 @@ class Client:
         if not check_if_exist_line:
             with open('../.env', 'a') as f:
                 f.write(f"\nWALLET_PRIVATE_KEY={wallet_private_key}")
-        #set_key('../.env', 'WALLET_PRIVATE_KEY', wallet_private_key)
-        # with open('.env', 'a') as f:
-        #     f.write(f"\nWALLET_PRIVATE_KEY={wallet_private_key}")
+
         return wallet_private_key
 
-    # Get file public key by passing wallet_private_key
-    def get_file_public_key(self, wallet_private_key):
-        # Generate key by pass wallet_private_key
-        file_public_key = str(try6.gen_eth_public_key(wallet_private_key))
-        check_if_exist_line = False
-        # Save to .env file
-        with open('../.env', "r") as f:
-            lines = f.readlines()
-        for i, line in enumerate(lines):
-            if line.startswith("FILE_PUBLIC_KEY"):
-                check_if_exist_line = True
-                lines[i] = f"FILE_PUBLIC_KEY={file_public_key[2:]}\n"
-
-        with open('../.env', "w") as f:
-            f.writelines(lines)
-
-        # If line not exist
-        if not check_if_exist_line:
-            with open('../.env', 'a') as f:
-                f.write(f"\nFILE_PUBLIC_KEY={file_public_key[2:]}")
-        #set_key('../.env', 'FILE_PUBLIC_KEY', file_public_key)
-        # with open('.env', 'a') as f:
-        #     f.write(f"\nFILE_PUBLIC_KEY={file_public_key}")
-        return file_public_key
-
-    # def ask_for_wallet_keys(self):
-    #     questions = [
-    #         inquirer.Text('wallet_public_key', message="Enter your wallet public key:"),
-    #         inquirer.Text('wallet_private_key', message="Enter your wallet private key:")
-    #     ]
-    #     answers = inquirer.prompt(questions)
+    # # Get file public key by passing wallet_private_key
+    # def get_file_public_key(self, wallet_private_key):
+    #     # Generate key by pass wallet_private_key
+    #     file_public_key = str(try6.gen_eth_public_key(wallet_private_key))
+    #     check_if_exist_line = False
+    #     # Save to .env file
+    #     with open('../.env', "r") as f:
+    #         lines = f.readlines()
+    #     for i, line in enumerate(lines):
+    #         if line.startswith("FILE_PUBLIC_KEY"):
+    #             check_if_exist_line = True
+    #             lines[i] = f"FILE_PUBLIC_KEY={file_public_key[2:]}\n"
     #
-    #     # Save wallet keys to .env file
-    #     with open('.env', 'a') as f:
-    #         f.write(f'\nWALLET_PUBLIC_KEY={answers["wallet_public_key"]}\n')
-    #         f.write(f'WALLET_PRIVATE_KEY={answers["wallet_private_key"]}\n')
+    #     with open('../.env', "w") as f:
+    #         f.writelines(lines)
     #
-    #     self.wallet_public_key = answers['wallet_public_key']
-    #     self.wallet_private_key = answers['wallet_private_key']
+    #     # If line not exist
+    #     if not check_if_exist_line:
+    #         with open('../.env', 'a') as f:
+    #             f.write(f"\nFILE_PUBLIC_KEY={file_public_key[2:]}")
+    #
+    #     return file_public_key
 
-    # Save AES key to local storage
-    def save_aes_key(self, file_name, enc_aes_key):
-        # Load existing AES key file
-        if os.path.exists(self.aes_key_file):
-            with open(self.aes_key_file, 'r') as f:
-                aes_keys = json.load(f)
-        else:
-            aes_keys = {}
 
-        # Convert the encrypted key to a base64-encoded string
-        enc_aes_key_b64 = base64.b64encode(enc_aes_key).decode('utf-8')
+    # # Save AES key to local storage
+    # def save_aes_key(self, file_name, enc_aes_key):
+    #     # Load existing AES key file
+    #     if os.path.exists(self.aes_key_file):
+    #         with open(self.aes_key_file, 'r') as f:
+    #             aes_keys = json.load(f)
+    #     else:
+    #         aes_keys = {}
+    #
+    #     # Convert the encrypted key to a base64-encoded string
+    #     enc_aes_key_b64 = base64.b64encode(enc_aes_key).decode('utf-8')
+    #
+    #     # Add or update the AES key for the file
+    #     aes_keys[file_name] = enc_aes_key_b64
+    #
+    #     # Save the updated AES key file
+    #     with open(self.aes_key_file, 'w') as f:
+    #         f.write(json.dumps(aes_keys))
 
-        # Add or update the AES key for the file
-        aes_keys[file_name] = enc_aes_key_b64
-
-        # Save the updated AES key file
-        with open(self.aes_key_file, 'w') as f:
-            f.write(json.dumps(aes_keys))
-
-    def get_aes_key(self, file_name):
-        # Load AES key file
-        if os.path.exists(self.aes_key_file):
-            with open(self.aes_key_file, 'r') as f:
-                aes_keys = json.load(f)
-        else:
-            return None
-
-        # Return the AES key for the file
-        return base64.b64decode(aes_keys.get(file_name))
+    # def get_aes_key(self, file_name):
+    #     # Load AES key file
+    #     if os.path.exists(self.aes_key_file):
+    #         with open(self.aes_key_file, 'r') as f:
+    #             aes_keys = json.load(f)
+    #     else:
+    #         return None
+    #
+    #     # Return the AES key for the file
+    #     return base64.b64decode(aes_keys.get(file_name))
 
     def upload_chunks_to_server(self, chunks):
         headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
@@ -256,8 +295,6 @@ class Client:
         response = requests.get(self.testUrl_verify)
         return response
 
-
-
     def download_chunks_from_server(self, node_ips_server):
         chunks_data = []
         for chunk_hash, node_ip in node_ips_server.items():
@@ -272,13 +309,13 @@ class Client:
                 chunks_data.append(bytearray(chunk_data_bytes))
 
             else:
+                # TODO: if failed, 50%? three times count?
                 print(f"Error downloading chunk {chunk_hash} from node {node_ip}")
         return chunks_data
 
     # TODO: remove chunks from server
     def remove_chunks_from_server(self, node_ips_server):
         return
-
 
     def get_available_nodes(self):
         # Mock avaiable nodes for testing , 'faf8fc10-5775-4006-a555-372ae34ade31'
@@ -299,7 +336,6 @@ class Client:
             }
         ]
         return mock_nodes
-
 
     def run(self):
         while True:
@@ -339,13 +375,7 @@ class Client:
         file_name = os.path.basename(file_path)
         file_size = os.path.getsize(file_path)
 
-        # Encrypt, encode and split the file into chunks
-        #chunk_list, enc_aes_key = self.file_handler.uploadFile(file_path)
-        # chunk_list, mac_tag_list = self.new_file_handler.uploader_helper(data,
-        #                                                                  self.wallet_private_key,
-        #                                                                  self.file_public_key,
-        #                                                                  chunkSize=self.chunk_size)
-
+        # Split, Encrypt, Encode the file
         chunk_list = self.new_file_handler.uploader_helper(data)
 
         # Save AES key to local storage
