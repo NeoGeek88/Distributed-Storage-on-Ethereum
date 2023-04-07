@@ -114,6 +114,7 @@ class Client:
 
             if merkle_proof:
                 print(f"Chunk {selected_chunk_hash} from file {selected_file_metadata['file_name']} is verified")
+                return
             else:
                 print(f"Chunk {selected_chunk_hash} from file {selected_file_metadata['file_name']} failed verification")
 
@@ -155,17 +156,89 @@ class Client:
 
                 # TODO: may need to implement function to upload single chunk to server
 
-                # TODO: connector.update() to update on chain
+                # Store chunk for server
+                chunk_server = base64.b64encode(chunk_list[0][index]).decode('utf-8')
+                # Hash chunk
+                hashed_chunk = self.merkletree.keccak256(bytes(chunk_list[0][index]), 'bytes')
 
+                # # Get available nodes and select a random node to store chunk
+                # available_nodes = self.connector.list_nodes()
 
-                # TODO: may need server update api to upload the chunk
+                # mock available_nodes
+                available_nodes_mock = self.get_available_nodes()
 
+                # Get available node list
+                available_nodes = {}
+                available_nodes_id = []
+                for available_node_metadata in available_nodes_mock:
+                    node_id = available_node_metadata["node_id"]
+                    node_ip = available_node_metadata["ip_address"]
+                    available_nodes_id.append(node_id)
+                    available_nodes[node_id] = node_ip
 
+                # randomly select node
+                selected_nodes_id = np.random.choice(available_nodes_id, size=1, replace=True)
 
+                # Get current timestamp
+                time_stamp = int(time.time())
 
+                # Construct the file metadata for the smart contract
+                file_chunks_SC = selected_file_metadata["file_chunks"]
+                file_chunks_SC[index]["node_id"] = selected_nodes_id
+                selected_file_metadata["file_chunks"] = file_chunks_SC
+                selected_file_metadata["timestamp"] = time_stamp
 
-                # Reupload the file (with the failed chunk replaced)
-                self.upload_file_helper(selected_file_metadata["file_name"], file_chunks)
+                # Construct the file metadata for the server
+                file_chunk_server = {
+                    "chunkHash": hashed_chunk.hex(),
+                    "chunkData": chunk_server
+                }
+
+                # Convert the metadata to JSON format for SC
+                json_selected_file_metadata = json.dumps(selected_file_metadata)
+
+                # Convert the metadata to JSON format for server
+                json_file_chunk_server = json.dumps(file_chunk_server)
+
+                headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+                url = f"http://{available_nodes[selected_node_id]}:6000/chunk"
+                retry_count = 0
+                while retry_count < 3:
+                    response = requests.post(url, data=json_file_chunk_server, headers=headers)
+
+                    if response.status_code == 200:
+                        print("The chunk uploaded to server successfully!")
+                        break # Exit the loop if successful
+                    else:
+                        retry_count += 1
+                        print("Error uploading the chunk to server. Retrying...")
+
+                # Check if the upload was successful after retrying
+                if response.status_code != 200:
+                    print("Server down")
+                    return
+
+                # Set up retry count
+                retry_count = 0
+
+                # Upload the metadata to the smart contract, retrying up to 3 times if necessary
+                while retry_count < 3:
+                    receipt = self.connector.upload_file(json_selected_file_metadata)
+
+                    if receipt['status'] == 1:
+                        print("File metadata updated to blockchain successfully!")
+                        break  # Exit the loop if successful
+                    else:
+                        retry_count += 1
+                        print("Error updating file to blockchain. Retrying...")
+
+                # Check if the upload was successful after retrying
+                if receipt['status'] != 1:
+                    print("Failed to update file metadata to blockchain after 3 attempts. Aborting upload.")
+                    return
+
+                print("Failed verification fixed")
+                return
 
     # Get wallet public key from user input
     def get_wallet_public_address(self):
