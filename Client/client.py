@@ -6,12 +6,10 @@ import inquirer
 import os
 import numpy as np
 import requests
-import asyncio
 from connector import Connector
 import base64
 from MerkleTree import MerkleTree
-from dotenv import load_dotenv, dotenv_values, set_key
-import time
+from dotenv import load_dotenv
 from FileHandler import FileHandler
 import threading
 import time
