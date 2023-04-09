@@ -129,7 +129,7 @@ class Client:
 
 
     def upload_chunks_to_server(self, chunks):
-        headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+        headers = {'Content-type': 'application/json'}
         #headers = {'Content-Type': 'application/json'}
         # for chunk in chunks:
         #     json_data = json.dumps(chunk)
@@ -139,21 +139,24 @@ class Client:
 
         for chunk in chunks:
             url = f"http://{chunk['node_ip']}:{chunk['port']}/chunk"
+            chunks_id = []
             retry_count = 0
             while retry_count < 3:
                 response = requests.post(url, data=json.dumps({
-                    "chunkHash": chunk['chunkHash'],
                     "chunkData": chunk['chunkData']
                 }), headers=headers)
                 if response.status_code == 200:
+                    chunk_id = json.loads(response.content)
+                    chunk_id1 = chunk_id['chunkId']
+                    chunks_id.append(chunk_id1)
                     break
                 else:
                     retry_count += 1
                     print("Error uploading file to blockchain. Retrying...")
             if response.status_code != 200:
                 print("Failed to upload file to server after 3 attempts. Aborting upload.")
-                return response
-        return response
+                return chunks_id, response
+        return chunks_id, response
 
     def verify_chunks(self, node_info):
         for node in node_info:
@@ -163,25 +166,25 @@ class Client:
         return response
 
     def download_chunks_from_server(self, node_ips_server):
-        chunks_data = []
-        for chunk_hash, node_ip in node_ips_server.items():
-            url = f"http://{node_ip}:6000/chunk/{chunk_hash}"
-            response = requests.get(url)
-            if response.status_code == 200:
-                # do something with the chunk data
-                chunk_data = json.loads(response.content)
-                chunk_data1 = chunk_data["chunkData"]
-                #chunk_data2 = chunk_data1['chunk']
-                chunk_data_bytes = base64.b64decode(chunk_data1)
-                chunks_data.append(bytearray(chunk_data_bytes))
-
-            else:
-                # TODO: if failed, 50%? three times count?
-                print(f"Error downloading chunk {chunk_hash} from node {node_ip}")
+        # chunks_data = []
+        # for chunk_hash, node_ip in node_ips_server.items():
+        #     url = f"http://{node_ip}:6000/chunk/{chunk_hash}"
+        #     response = requests.get(url)
+        #     if response.status_code == 200:
+        #         # do something with the chunk data
+        #         chunk_data = json.loads(response.content)
+        #         chunk_data1 = chunk_data["chunkData"]
+        #         #chunk_data2 = chunk_data1['chunk']
+        #         chunk_data_bytes = base64.b64decode(chunk_data1)
+        #         chunks_data.append(bytearray(chunk_data_bytes))
+        #
+        #     else:
+        #         # TODO: if failed, 50%? three times count?
+        #         print(f"Error downloading chunk {chunk_hash} from node {node_ip}")
 
         chunks_data = []
         for node in node_ips_server:
-            url = f"http://{node['ip_address']}:{node['port']}/chunk/{node['chunk_hash']}"
+            url = f"http://{node['ip_address']}:{node['port']}/chunk/{node['chunkId']}"
             response = requests.get(url)
             if response.status_code == 200:
                 # do something with the chunk data
@@ -193,7 +196,7 @@ class Client:
 
             else:
                 # TODO: if failed, 50%? three times count?
-                print(f"Error downloading chunk {chunk_hash} from node {node_ip}")
+                print(f"Error downloading chunk {node['chunkId']} from node {node['ip_address']}")
         return chunks_data
 
 
@@ -467,7 +470,6 @@ class Client:
         # Hash each chunk in the list
         hashed_chunks = []
         for chunk in chunk_list[0]:
-            #hashed_chunk = MerkleTree(None).keccak256(bytes(chunk), 'bytes')
             hashed_chunk = self.merkletree.keccak256(bytes(chunk), 'bytes')
             hashed_chunks.append(hashed_chunk)
 
@@ -525,18 +527,6 @@ class Client:
         root_hash = self.merkletree.get_roothash(mt)
         root_hash = root_hash.hex()
 
-        # Construct the file metadata for the smart contract
-        file_metadata= {
-            "file_name": file_name,
-            "file_size": file_size,
-            "root_hash": root_hash,
-            "chunk_size": self.chunk_size,
-            "redundancy": self.redundancy,
-            "timestamp": time_stamp,
-            "file_chunks": [{"chunk_hash": chunk_hash.hex(), "node_id": selected_node['node_id']} for chunk_hash, selected_node in
-                            zip(hashed_chunks, selected_nodes)]
-        }
-
         # Construct the file metadata for the server
         # file_metadata_server = {
         #     "file_name": file_name,
@@ -559,14 +549,11 @@ class Client:
                                  } for chunk_hash, chunk, selected_node in
                             zip(hashed_chunks, chunk_list_server, selected_nodes)]
 
-        # Convert the metadata to JSON format
-        json_metadata = json.dumps(file_metadata)
-
         # # Convert the metadata to JSON format for server
         # json_metadata_server = json.dumps(file_metadata_server)
 
         # Upload the metadata to the server
-        response = self.upload_chunks_to_server(file_metadata_server)
+        chunks_id, response = self.upload_chunks_to_server(file_metadata_server)
         if response.status_code == 200:
             print("Chunks uploaded to server successfully!")
         else:
@@ -574,6 +561,23 @@ class Client:
 
         # Upload the metadata to the smart contract
         #receipt = await asyncio.wait_for(connector.upload_file(json_metadata), timeout=None)
+
+        # Construct the file metadata for the smart contract
+        file_metadata= {
+            "file_name": file_name,
+            "file_size": file_size,
+            "root_hash": root_hash,
+            "chunk_size": self.chunk_size,
+            "redundancy": self.redundancy,
+            "timestamp": time_stamp,
+            "file_chunks": [{"chunk_hash": chunk_hash.hex(), "node_id": selected_node['node_id'],
+                             "chunk_id":chunk_id}
+                            for chunk_hash, selected_node, chunk_id in
+                            zip(hashed_chunks, selected_nodes, chunks_id)]
+        }
+
+        # Convert the metadata to JSON format
+        json_metadata = json.dumps(file_metadata)
 
         # Set up retry count
         retry_count = 0
@@ -690,7 +694,7 @@ class Client:
             "node_id",
             "ip_address",
             "port",
-            "chunkHash"
+            "chunkId"
         }]
 
         for node_id in node_ids:
@@ -710,7 +714,7 @@ class Client:
         #     node_ips_server[chunk_hash] = ip_address
 
         for chunk in selected_file_metadata["file_chunks"]:
-            node_info["chunkHash"] = chunk["chunk_hash"]
+            node_info["chunkId"] = chunk["chunk_id"]
 
 
         # Download chunks from server
@@ -846,6 +850,14 @@ class Client:
         # Split, Encrypt, Encode the file
         chunk_list = self.new_file_handler.uploader_helper(data)
 
+        # Save AES key to local storage
+        #self.save_aes_key(file_name,enc_aes_key)
+
+        # Convert the encrypted key to a base64-encoded string
+        #enc_aes_key_b64 = base64.b64encode(enc_aes_key).decode('utf-8')
+
+        #key = self.get_aes_key(file_name)
+
         # Store chunk list for server
         chunk_list_server = []
         for chunk in chunk_list[0]:
@@ -854,7 +866,6 @@ class Client:
         # Hash each chunk in the list
         hashed_chunks = []
         for chunk in chunk_list[0]:
-            #hashed_chunk = MerkleTree(None).keccak256(bytes(chunk), 'bytes')
             hashed_chunk = self.merkletree.keccak256(bytes(chunk), 'bytes')
             hashed_chunks.append(hashed_chunk)
 
@@ -912,18 +923,6 @@ class Client:
         root_hash = self.merkletree.get_roothash(mt)
         root_hash = root_hash.hex()
 
-        # Construct the file metadata for the smart contract
-        file_metadata= {
-            "file_name": file_name,
-            "file_size": file_size,
-            "root_hash": root_hash,
-            "chunk_size": self.chunk_size,
-            "redundancy": self.redundancy,
-            "timestamp": time_stamp,
-            "file_chunks": [{"chunk_hash": chunk_hash.hex(), "node_id": selected_node['node_id']} for chunk_hash, selected_node in
-                            zip(hashed_chunks, selected_nodes)]
-        }
-
         # Construct the file metadata for the server
         # file_metadata_server = {
         #     "file_name": file_name,
@@ -946,14 +945,11 @@ class Client:
                                  } for chunk_hash, chunk, selected_node in
                             zip(hashed_chunks, chunk_list_server, selected_nodes)]
 
-        # Convert the metadata to JSON format
-        json_metadata = json.dumps(file_metadata)
-
         # # Convert the metadata to JSON format for server
         # json_metadata_server = json.dumps(file_metadata_server)
 
         # Upload the metadata to the server
-        response = self.upload_chunks_to_server(file_metadata_server)
+        chunks_id, response = self.upload_chunks_to_server(file_metadata_server)
         if response.status_code == 200:
             print("Chunks uploaded to server successfully!")
         else:
@@ -961,6 +957,23 @@ class Client:
 
         # Upload the metadata to the smart contract
         #receipt = await asyncio.wait_for(connector.upload_file(json_metadata), timeout=None)
+
+        # Construct the file metadata for the smart contract
+        file_metadata= {
+            "file_name": file_name,
+            "file_size": file_size,
+            "root_hash": root_hash,
+            "chunk_size": self.chunk_size,
+            "redundancy": self.redundancy,
+            "timestamp": time_stamp,
+            "file_chunks": [{"chunk_hash": chunk_hash.hex(), "node_id": selected_node['node_id'],
+                             "chunk_id":chunk_id}
+                            for chunk_hash, selected_node, chunk_id in
+                            zip(hashed_chunks, selected_nodes, chunks_id)]
+        }
+
+        # Convert the metadata to JSON format
+        json_metadata = json.dumps(file_metadata)
 
         # Set up retry count
         retry_count = 0
