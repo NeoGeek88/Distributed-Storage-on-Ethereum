@@ -26,8 +26,8 @@ class Client:
         # self.testUrl = "http://127.0.0.3:5000"
         # self.testUrl_server = "http://localhost:3000/chunk"
         self.testUrl_verify = "http://localhost:3000/chunk/verify"
-        INFURA_NODE_ENDPOINT = "https://sepolia.infura.io/v3/325c2e4f72b743a99bf8325760da19c5"
-        CONTRACT_ADDRESS = "0x70C251E437a894f57b07Ae8a8bed120c0bAbE223"
+        INFURA_NODE_ENDPOINT = ""
+        CONTRACT_ADDRESS = ""
         WALLET_PUBLIC_ADDRESS = ""
         WALLET_PRIVATE_KEY = ""
         self.chunk_size = 262144
@@ -43,11 +43,24 @@ class Client:
                 f.write(f"CONTRACT_ADDRESS={CONTRACT_ADDRESS}\n")
                 f.write(f"WALLET_PUBLIC_ADDRESS={WALLET_PUBLIC_ADDRESS}\n")
                 f.write(f"WALLET_PRIVATE_KEY={WALLET_PRIVATE_KEY}\n")
-                #f.write(f"FILE_PUBLIC_KEY={FILE_PUBLIC_KEY}\n")
             sys.exit(0)
 
         # Load environment variables from .env file
         load_dotenv('G:\\tool\\newproject\\Distributed-Storage-on-Ethereum\\.env')
+
+        # Get INFURA NODE ENDPOINT
+        self.infura_node_endpoint = os.getenv("INFURA_NODE_ENDPOINT")
+        if not self.infura_node_endpoint:
+            print("There is no infura node endpoint in your .env"
+                  "\n Please edit you .env")
+            sys.exit(0)
+
+        # Get contract address
+        self.contract_address = os.getenv("CONTRACT_ADDRESS")
+        if not self.contract_address:
+            print("There is contract address in your .env"
+                  "\n Please edit you .env")
+            sys.exit(0)
 
         # Get wallet public key from environment variable
         self.wallet_public_address = os.getenv("WALLET_PUBLIC_ADDRESS")
