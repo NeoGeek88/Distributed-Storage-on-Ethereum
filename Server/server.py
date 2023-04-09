@@ -1,26 +1,48 @@
 import sys
+sys.path.append('../Library/Web3/')
+sys.path.append('../Library/Crypto/')
+import sys
 import os
 import time
-import random
-import hashlib
-import socket
-import requests
-import threading
 import base64
 import uuid
 import sqlite3
 import asyncio
-import aiohttp
 from datetime import datetime
 from flask import Flask, request
 import json
+import connector
+import argparse
+
+# Create the argument parser
+parser = argparse.ArgumentParser(description='Distributed Storage Server')
+
+# Add the arguments
+parser.add_argument('-p', '--port', type=int, default=3000, help='Port number (default: 3000)')
+parser.add_argument('-H', '--ip-address', type=str, dest="ip",  default='127.0.0.1', help='Host address (default: 127.0.0.1)')
+parser.add_argument('-d', '--domain', type=str, default='localhost', help='Host domain (default: localhost)')
+parser.add_argument('-c', '--config', type=str, default=os.path.join(os.getcwd(), "server.json"),  help='Config file path')
+
+# Parse the arguments
+args = parser.parse_args()
+
+# Access the arguments
+port = args.port
+ip_address = args.ip
+domain = args.domain
+config_path = args.config
+
+"""
+    TODO:
+    1. FETCH INFO FROM SMARTCONTRACT                            0326-0327   FINISHED
+    2. IMPLEMENT FILE RECOVERY and PERIODICAL INTEGRITY CHECK   0328-0330   PENDING
+"""
 
 
 chunk_db_path = "chunks.db"
 log_db_path = "logs.db"
 node_db_path = "nodes.db"
 chunk_path = "./chunks"
-
 
 def connect_to_db(db_path):
     return sqlite3.connect(db_path)
@@ -52,7 +74,8 @@ def build_chunk_db(conn):
             chunkHash TEXT NOT NULL,
             chunkdata BLOB NOT NULL,
             createdAt DATETIME NOT NULL,
-            verified BOOLEAN NOT NULL
+            verified BOOLEAN NOT NULL,
+            removed BOOLEAN NOT NULL
         ) 
     """)
 
@@ -85,7 +108,8 @@ def build_log_db(conn):
 def add_chunk(conn, chunk_hash, chunk_data):
     _bytes = base64.b64decode(chunk_data)
     conn.execute(
-        "INSERT INTO chunks (chunkHash, chunkData, createdAt, verified) VALUES (?, ?, ?, ?)", (chunk_hash, _bytes, datetime.now(), False))
+        "INSERT INTO chunks (chunkHash, chunkData, createdAt, verified, removed) VALUES (?, ?, ?, ?, ?)", (chunk_hash, _bytes, datetime.now(), False, False)
+    )
     conn.commit()
 
     return conn
@@ -125,7 +149,7 @@ def get_chunk(conn, chunk_hash):
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT * FROM chunks where chunkHash=? AND verified=1 LIMIT 1", (chunk_hash, )
+        "SELECT * FROM chunks WHERE chunkHash=? AND verified=1 LIMIT 1", (chunk_hash, )
     )
 
     chunk = cursor.fetchone()
@@ -134,6 +158,16 @@ def get_chunk(conn, chunk_hash):
 
     return chunk
 
+def get_unverified_chunks(conn):
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM chunks where verified=0"
+    )
+
+    chunks = cursor.fetchall()
+    cursor.close()
+
+    return chunks
 
 # TYPE: UPLOAD, DOWNLOAD, CHECK, SYSTEM
 def log(conn, content, type):
@@ -161,19 +195,25 @@ app = Flask(__name__)
 
 @app.route("/chunk", methods=["POST"])
 def save_chunk():
+    log_db_conn = connect_to_log_db()
+
+    # parse the chunk data from request body
     body = request.json
-    print(body)
 
     chunk_hash = body["chunkHash"]
     chunk_data = body["chunkData"]
+    log(
+        log_db_conn,
+        f"received chunk {chunk_hash} to be saved",
+        "UPLOAD"
+    )
 
+    # save the chunk into chunk db
     chunk_db_conn = connect_to_chunk_db()
     add_chunk(chunk_db_conn, chunk_hash, chunk_data).close()
 
     with open(os.path.join(chunk_path, chunk_hash), "wb") as f:
         f.write(base64.b64decode(chunk_data))
-
-    log_db_conn = connect_to_log_db()
 
     log(
         log_db_conn,
@@ -189,9 +229,9 @@ def download_chunk(hash):
     chunk_db_conn = connect_to_chunk_db()
     chunk = get_chunk(chunk_db_conn, hash)
     chunk_db_conn.close()
+    log_db_conn = connect_to_log_db()
 
     if chunk is None:
-        log_db_conn = connect_to_log_db()
         log(
             log_db_conn,
             f"chunk {hash} does not exist or verified",
@@ -201,23 +241,70 @@ def download_chunk(hash):
         return f"Chunk {hash} not found.", 404
 
     else:
+        log(
+            log_db_conn,
+            f"chunk {hash} is downloading by #requester",
+            "DOWNLOAD"
+        )
+
+        log_db_conn.close()
         response = {
             "chunkHash": chunk[1],
-            "chunkData": base64.b64encode(chunk[2]).decode()
+            "chunkData": base64.b64encode(chunk[2]).decode(encoding="utf-8")
         }                
-        print(response)
 
         return response, 200
 
+@app.route("/chunk/<hash>/remove", methods=["GET"])
+def delete_chunk(hash):
+    chunk_db_conn = connect_to_chunk_db()
+    log_conn = connect_to_log_db()
+
+    remove_chunk(chunk_db_conn, hash)
+    log()
+    
+    return f"Chunk {hash} has been removed.", 200
+
+@app.route("/chunk/<hash>/check", methods=["GET"])
+def check_chunk(hash):
+    chunk_db_conn = connect_to_chunk_db()
+    log_conn = connect_to_log_db()
+    chunk = get_chunk(chunk_db_conn, hash)
+
+    log(log_conn, f"checking the status of chunk {hash}", "VERIFY")
+    # chunk is not found
+    if chunk is None:
+        return f"chunk {hash} is not found.", 404
+
+    # chunk is not verified
+    elif chunk[4] == 0:
+        return f"chunk {hash} is not verified.", 200
+    
+    # chunk is removed 
+    elif chunk[5] == 0:
+        return f"chunk {hash} is removed.", 200
+    
+    
+    return f"chunk {hash} is valid.", 400
+         
+
 @app.route("/chunk/verify", methods=["GET"])
 def verify_chunks():
+    #all_chunks = fetch_chunks(app.config["UUID"])
+
     chunk_db_conn = connect_to_chunk_db()
+    log_conn = connect_to_log_db()
+    contract_conn = connector.Connector()
+
     db_execute(chunk_db_conn, """
         UPDATE chunks
         SET verified=1
     """)
+
+    log(log_conn, "All chunks has been verified.", "UPLOAD")
     chunk_db_conn.close()
-    return "all chunks are verified", 200
+
+    return "All chunks has benn verified", 200
 
 @app.route("/health", methods=['GET'])
 def health():
@@ -232,8 +319,67 @@ def health():
 def hello():
     return "hello, world!", 200
 
+def read_server_config(config_path=config_path):
+    config = {}
+    log_conn = connect_to_log_db()
+    
+    if os.path.exists(config_path):
+        with open(config_path) as cfg_fd:
+            config = json.load(cfg_fd)
+            log(log_conn, f"Read config from {config_path}.", "BOOT")
+        
+    else:
+        config = {
+            "node_id": str(uuid.uuid4()),
+            "ip_address": ip_address,
+            "domain": domain,
+            "port": port,
+            "protocol": 0
+        }
+        log(log_conn, f"Server config generated, {json.dumps(config)}.", "BOOT")
+        with open(config_path, "w") as cfg_fd:
+            json.dump(config, cfg_fd)
+            log(log_conn, f"Saved config file to {config_path}.", "BOOT")
+            
+        
+    log_conn.close()
+    return config
 
+def register(contract_conn, config):
+    log_conn = connect_to_log_db()
+    contract_conn.add_node(
+        json.dumps(config)
+    )
+    log(log_conn, "Registered server config on blockchain.", "BOOT")
+
+    
+
+def boot():
+    contract_conn = connector.Connector()
+    
+    # read node config
+    config = read_server_config()
+
+    # regist current node
+    active_nodes = json.loads(contract_conn.list_nodes())
+    print(active_nodes)
+
+    registered = False
+    for node in active_nodes:
+        if node["node_id"] == config["node_id"]:
+            registered = True
+        
+    if not registered:
+        register(contract_conn, config)
+
+    return config
+
+    
 if __name__ == "__main__":
+
+    #if len(sys.argv) > 1:
+        #PORT = int(sys.argv[-1])
+    
     #create dbs
     if not os.path.exists(os.path.join(os.getcwd(), chunk_db_path)):
         build_chunk_db(connect_to_chunk_db()).close()        
@@ -245,10 +391,9 @@ if __name__ == "__main__":
     if not os.path.isdir(os.path.join(os.getcwd(), chunk_path)):
         os.mkdir(os.path.join(os.getcwd(), chunk_path))
 
-    app.run(port=3000, debug= True)
-    
+    #booting up node
+    config = boot()
 
+    app.config["UUID"] = config["node_id"]    
 
-    
-    
-        
+    app.run(port=config["port"])
