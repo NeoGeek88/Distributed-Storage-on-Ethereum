@@ -9,27 +9,35 @@ Or you can use 4 .sol files inside the Contract folder to deploy a Smart Contrac
 #### Client Setup
 
 To use the client application, the user needs to provide the following information:
-```shell
-INFURA_NODE_ENDPOINT: This is the endpoint for the Infura node used to connect to the Ethereum blockchain.
-CONTRACT_ADDRESS: This is the address of the smart contract used to store the file information on the blockchain.
-WALLET_PUBLIC_ADDRESS: This is the public address of the Ethereum wallet used to interact with the smart contract.
-WALLET_PRIVATE_KEY: This is the private key of the Ethereum wallet used to sign transactions on the blockchain.
-```
+
+- INFURA_NODE_ENDPOINT: This is the endpoint for the Infura node used to connect to the Ethereum blockchain.
+
+- CONTRACT_ADDRESS: This is the address of the smart contract used to store the file information on the blockchain.
+
+- WALLET_PUBLIC_ADDRESS: This is the public address of the Ethereum wallet used to interact with the smart contract.
+
+- WALLET_PRIVATE_KEY: This is the private key of the Ethereum wallet used to sign transactions on the blockchain.
 
 ##### Libraries used:
 The following libraries are required to run the Client software:
-```shell
-inquirer: This library is used to provide an interactive command-line interface for the user.
-requests: This library is used to make HTTP requests to the storage nodes.
-numpy: This library is used to manipulate arrays and perform mathematical operations.
-base64: This library is used to encode and decode binary data in base64 format.
-MerkleTree: This is a custom class that implements the Merkle tree data structure.
-FileHandler: This is a custom class that handles the encryption, split, encode, decode, and merge. (may need to rewrite?)
-dotenv: This library is used to load environment variables from a .env file.
-threading: This library is used to create a background thread that periodically verifies the integrity of the uploaded chunks.
-```
 
-**##### Connecting to the nodes:**
+- inquirer: This library is used to provide an interactive command-line interface for the user.
+
+- requests: This library is used to make HTTP requests to the storage nodes.
+
+- numpy: This library is used to manipulate arrays and perform mathematical operations.
+
+- base64: This library is used to encode and decode binary data in base64 format.
+
+- MerkleTree: This is a custom class that implements the Merkle tree data structure.
+
+- FileHandler: This is a custom class that handles the encryption, split, encode, decode, and merge. (may need to rewrite?)
+
+- dotenv: This library is used to load environment variables from a .env file.
+
+- threading: This library is used to create a background thread that periodically verifies the integrity of the uploaded chunks.
+
+##### Connecting to the nodes:
 
 The Client software communicates with the nodes using HTTP requests. To connect to the nodes, the Client software requires the IP address and port number of each node.  (may need chunk id in the future?)
 
