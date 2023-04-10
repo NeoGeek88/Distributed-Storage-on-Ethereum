@@ -685,26 +685,41 @@ class Client:
         #selected_file_metadata = json.loads(self.connector.retrieve_file(selected_file_root_hash))
 
         # Extract node ids from the selected file metadata
-        node_ids = []
+        nodes_selected_file = []
         for chunk in selected_file_metadata["file_chunks"]:
-            node_ids.append(chunk["node_id"])
+            #node_ids.append(chunk["node_id"])
+            nodes_selected_file.append(json.loads(self.connector.get_node(chunk["node_id"])))
 
-        # Get IP addresses of nodes
-        node_ips = {}
+
+
+        # # Get IP addresses of nodes
+        # node_ips = {}
+        # nodes_info = [{
+        #     "node_id",
+        #     "ip_address",
+        #     "port",
+        #     "chunkId"
+        # }]
+        #
+        # for chunk in selected_file_metadata["file_chunks"]:
+        #     node_info["chunkId"] = chunk["chunk_id"]
+        #
+        # for node_id, node_info in zip(node_ids, nodes_info):
+        #     node_json = self.connector.get_node(node_id)
+        #     node = json.loads(node_json)
+        #     #node_ips[node_id] = node["ip_address"]
+        #     node_info['node_id'] = node['node_id']
+        #     node_info['ip_address'] = node['ip_address']
+        #     node_info['port'] = node['port']
+
+
         nodes_info = [{
-            "node_id",
-            "ip_address",
-            "port",
-            "chunkId"
-        }]
+            "node_id":node["node_id"],
+            "ip_address":node["ip_address"],
+            "port":node["port"],
+            "chunkId":chunk["chunk_id"]}
+            for chunk, node in zip(selected_file_metadata["file_chunks"], nodes_selected_file)]
 
-        for node_id, node_info in node_ids, nodes_info:
-            node_json = self.connector.get_node(node_id)
-            node = json.loads(node_json)
-            #node_ips[node_id] = node["ip_address"]
-            node_info['node_id'] = node['node_id']
-            node_info['ip_address'] = node['ip_address']
-            node_info['port'] = node['port']
 
         # Construct the file metadata for the server
         # node_ips_server = {}
@@ -714,12 +729,11 @@ class Client:
         #     ip_address = node_ips[node_id]
         #     node_ips_server[chunk_hash] = ip_address
 
-        for chunk in selected_file_metadata["file_chunks"]:
-            node_info["chunkId"] = chunk["chunk_id"]
+
 
 
         # Download chunks from server
-        file_chunks = self.download_chunks_from_server(node_info)
+        file_chunks = self.download_chunks_from_server(nodes_info)
 
         # Get AES key
         #enc_AES_key = self.get_aes_key(selected_file_name)
