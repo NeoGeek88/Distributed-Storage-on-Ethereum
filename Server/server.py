@@ -1,7 +1,6 @@
 import sys
 sys.path.append('../Library/Web3/')
 sys.path.append('../Library/Crypto/')
-import sys
 import os
 import time
 import base64
@@ -13,6 +12,7 @@ from flask import Flask, request
 import json
 import connector
 import argparse
+
 
 # Create the argument parser
 parser = argparse.ArgumentParser(description='Distributed Storage Server')
@@ -47,18 +47,14 @@ chunk_path = "./chunks"
 def connect_to_db(db_path):
     return sqlite3.connect(db_path)
 
-
 def connect_to_chunk_db():
     return connect_to_db(chunk_db_path)
-
 
 def connect_to_log_db():
     return connect_to_db(log_db_path)
 
-
 def connect_to_node_db():
     return connect_to_db(node_db_path)
-
 
 def db_execute(conn, stmt, commit=True):
     conn.execute(stmt)
@@ -193,6 +189,7 @@ def get_logs(conn):
 
 app = Flask(__name__)
 
+# return uuid, 200
 @app.route("/chunk", methods=["POST"])
 def save_chunk():
     log_db_conn = connect_to_log_db()
@@ -200,70 +197,76 @@ def save_chunk():
     # parse the chunk data from request body
     body = request.json
 
-    chunk_hash = body["chunkHash"]
+    #chunk_hash = body["chunkHash"]
     chunk_data = body["chunkData"]
+
+    chunk_id = str(uuid.uuid4())
+
     log(
         log_db_conn,
-        f"received chunk {chunk_hash} to be saved",
+        f"received chunk {chunk_id} to be saved",
         "UPLOAD"
     )
 
     # save the chunk into chunk db
     chunk_db_conn = connect_to_chunk_db()
-    add_chunk(chunk_db_conn, chunk_hash, chunk_data).close()
+    add_chunk(chunk_db_conn, chunk_id, chunk_data).close()
 
-    with open(os.path.join(chunk_path, chunk_hash), "wb") as f:
+    with open(os.path.join(chunk_path, chunk_id), "wb") as f:
         f.write(base64.b64decode(chunk_data))
 
     log(
         log_db_conn,
-        f"chunk {chunk_hash} is successfully uploaded",
+        f"chunk {chunk_id} is successfully uploaded",
         "UPLOAD"
     ).close()
 
 
-    return f"chunk {chunk_hash} has been successfully uploaded", 200
+    return json.dumps({
+        "chunkId": chunk_id
+    }), 200
 
-@app.route("/chunk/<hash>", methods=["GET"])
-def download_chunk(hash):
+@app.route("/chunk/<id>", methods=["GET"])
+def download_chunk(id):
     chunk_db_conn = connect_to_chunk_db()
-    chunk = get_chunk(chunk_db_conn, hash)
+    chunk = get_chunk(chunk_db_conn, id)
     chunk_db_conn.close()
     log_db_conn = connect_to_log_db()
 
     if chunk is None:
         log(
             log_db_conn,
-            f"chunk {hash} does not exist or verified",
+            f"chunk {id} does not exist or verified",
             "DOWNLOAD"
         )
         log_db_conn.close()
-        return f"Chunk {hash} not found.", 404
+        return f"Chunk {id} not found.", 404
 
     else:
         log(
             log_db_conn,
-            f"chunk {hash} is downloading by #requester",
+            f"chunk {id} is downloading by #requester",
             "DOWNLOAD"
         )
 
         log_db_conn.close()
+
         response = {
-            "chunkHash": chunk[1],
+            "chunkId": chunk[1],
             "chunkData": base64.b64encode(chunk[2]).decode(encoding="utf-8")
         }                
 
         return response, 200
 
-@app.route("/chunk/<hash>/remove", methods=["GET"])
-def delete_chunk(hash):
-    chunk_db_conn = connect_to_chunk_db()
-    log_conn = connect_to_log_db()
+#@app.route("/chunk/<hash>/remove", methods=["GET"])
+#def delete_chunk(hash):
+    #chunk_db_conn = connect_to_chunk_db()
+    #log_conn = connect_to_log_db()
 
-    remove_chunk(chunk_db_conn, hash)
-    log()
+    #remove_chunk(chunk_db_conn, hash)
+    #log()
     
-    return f"Chunk {hash} has been removed.", 200
+    #return f"Chunk {hash} has been removed.", 200
 
 @app.route("/chunk/<hash>/check", methods=["GET"])
 def check_chunk(hash):

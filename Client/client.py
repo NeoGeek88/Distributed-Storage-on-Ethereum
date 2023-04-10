@@ -256,13 +256,25 @@ class Client:
     def read_file(self, file_path):
         with open(file_path, 'rb') as f:
             return f.read()
+    # Convert str to bytes32
+    def string_to_bytes32(self, s: str) -> bytes:
+        if not isinstance(s, str):
+            raise ValueError("Input must be a string")
+
+        encoded = s.encode('utf-8')
+        if len(encoded) > 32:
+            # Truncate to 32 bytes if the string is too long
+            return encoded[:32]
+        else:
+            # Pad with zeros if the string is too short
+            return encoded + b'\x00' * (32 - len(encoded))
 
     def verify_chunks_periodically(self):
         # Pass wallet public address and private key to File Handler
         self.new_file_handler = FileHandler(self.wallet_public_address, f'0x{self.wallet_private_key}')
 
         # Define the interval between verification checks (in seconds)
-        interval = 3600
+        interval = 2
 
         while True:
             # Wait for the specified interval
@@ -277,8 +289,8 @@ class Client:
             # Randomly select a chunk from the file
             selected_chunk_metadata = random.choice(selected_file_metadata["file_chunks"])
 
-            # Get the hash of the selected chunk
-            selected_chunk_hash = selected_chunk_metadata["chunk_hash"]
+            # Get the chunk id of the selected chunk
+            selected_chunk_id = selected_chunk_metadata["chunk_id"]
 
             # Get the node ID of the selected chunk
             selected_node_id = selected_chunk_metadata["node_id"]
@@ -287,27 +299,37 @@ class Client:
             selected_node_metadata = json.loads(self.connector.get_node(selected_node_id))
             selected_node_ip = selected_node_metadata["ip_address"]
 
-            # Call Server function to pass the hash of the chunk to server and get the hash after server calculation
-            # TODO: according to server's hask related api to input hash and get hash
-            response = requests.post(f"http://{selected_node_ip}:3000/chunk/{selected_chunk_hash}",
-                                     data=json.dump(selected_node_ip))
-            if response.status_code != 200:
-                print("Error getting chunk hash")
-                continue
-            chunk_hash = response.json()["hash"]
+            # Get the port of the node
+            selected_node_port = selected_node_metadata["port"]
+
+            # # Call Server function to pass the hash of the chunk to server and get the hash after server calculation
+            # # TODO: according to server's hask related api to input chunk id and get hash
+            # response = requests.post(f"http://{selected_node_ip}:{selected_node_port}/chunk/{selected_chunk_id}",
+            #                          data=json.dumps(selected_chunk_id))
+            # if response.status_code != 200:
+            #     print("Error getting chunk hash")
+            #     continue
+            # chunk_hash = json.loads(response.content)
+            # chunk_hash1 = chunk_hash['chunkHash']
+
 
             # Get the index of the selected chunk
             index = selected_file_metadata["file_chunks"].index(selected_chunk_metadata)
 
+            # Convert root hash and chunk hash into bytes32
+            chunk_root_hash = selected_file_metadata["root_hash"]
+            bytes32_chunk_root_hash = self.string_to_bytes32(chunk_root_hash)
+
             # Get the Merkle proof for the selected chunk
-            merkle_proof = self.connector.merkle_proof(selected_file_metadata["root_hash"], chunk_hash, index)
+            merkle_proof = self.connector.merkle_proof(chunk_root_hash, chunk_root_hash,
+                                                       index)
 
             if merkle_proof:
-                print(f"Chunk {selected_chunk_hash} from file {selected_file_metadata['file_name']} is verified")
+                print(f"Chunk {selected_chunk_id} from file {selected_file_metadata['file_name']} is verified")
                 continue
             else:
                 print(
-                    f"Chunk {selected_chunk_hash} from file {selected_file_metadata['file_name']} failed verification")
+                    f"Chunk {selected_chunk_id} from file {selected_file_metadata['file_name']} failed verification")
 
                 # Extract node ids from the selected file metadata
                 node_ids = []
