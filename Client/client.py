@@ -136,10 +136,9 @@ class Client:
         #     response = requests.post(self.testUrl_server, data=json_data, headers=headers)
         #     if response.status_code != 200:
         #         break
-
+        chunks_id = []
         for chunk in chunks:
             url = f"http://{chunk['node_ip']}:{chunk['port']}/chunk"
-            chunks_id = []
             retry_count = 0
             while retry_count < 3:
                 response = requests.post(url, data=json.dumps({
@@ -671,6 +670,8 @@ class Client:
                 selected_file_metadata = file_metadata
                 break
 
+        file_size = selected_file_metadata['file_size']
+
         if selected_file_metadata is None:
             print("File not found.")
             return
@@ -690,14 +691,14 @@ class Client:
 
         # Get IP addresses of nodes
         node_ips = {}
-        node_info = [{
+        nodes_info = [{
             "node_id",
             "ip_address",
             "port",
             "chunkId"
         }]
 
-        for node_id in node_ids:
+        for node_id, node_info in node_ids, nodes_info:
             node_json = self.connector.get_node(node_id)
             node = json.loads(node_json)
             #node_ips[node_id] = node["ip_address"]
@@ -726,7 +727,7 @@ class Client:
         # Decode, decrypt, merge into a local file
         #self.file_handler.downloadFile(file_chunks, bytearray(enc_AES_key), download_path)
         #maclist = []
-        data = self.new_file_handler.downloader_helper(file_chunks, len(file_chunks))
+        data = self.new_file_handler.downloader_helper(file_chunks, file_size)
 
         # Construct the file path
         file_path = os.path.join(download_path, selected_file_metadata['file_name'])
@@ -841,7 +842,7 @@ class Client:
         receiver_share_public_key = inquirer.text(message="Please enter the receiver's public key")
 
         # Get the receiver's public address
-        eth_public_address = self.new_file_handler.gen_eth_public_address(receiver_share_public_key)
+        receiver_eth_public_address = self.new_file_handler.gen_eth_public_address(receiver_share_public_key)
 
         # Update the File_Handler object
         self.new_file_handler(self.wallet_public_address, f'0x{self.wallet_private_key}',
@@ -980,7 +981,7 @@ class Client:
 
         # Upload the metadata to the smart contract, retrying up to 3 times if necessary
         while retry_count < 3:
-            receipt = self.connector.upload_file(json_metadata)
+            receipt = self.connector.add_shared_file(receiver_eth_public_address, json_metadata)
 
             if receipt['status'] == 1:
                 print("File metadata uploaded to blockchain successfully!")
@@ -999,7 +1000,6 @@ class Client:
             print("all chunks are verified")
         else:
             print("verify failed")
-
         return
 
 
