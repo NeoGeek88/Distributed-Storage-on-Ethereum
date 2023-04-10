@@ -410,3 +410,6 @@ class FileHandler:
 # decoded_data_chunk = handler.downloader_helper(encoded_data_chunk[0], len(data_chunk))
 ##----------------
 ##reed-solomon redundancy
+
+
+## if last chunk lost, how to rebuild
