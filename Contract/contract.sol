@@ -58,7 +58,7 @@ contract DS is Context, Ownable {
         bytes32 _rootHash,
         FileChunk[] memory _fileChunks
     ) public returns(bool) {
-        require(_fileList[_rootHash].owner == _msgSender(), "File already exists!");
+        require(_fileList[_rootHash].owner != _msgSender(), "File already exists!");
         _fileList[_rootHash].owner = _msgSender();
         _fileList[_rootHash].fileName = _fileName;
         _fileList[_rootHash].timestamp = _timestamp;
@@ -88,7 +88,7 @@ contract DS is Context, Ownable {
         bytes32 _rootHash,
         FileChunk[] memory _fileChunks
     ) public returns(bool) {
-        require(_fileList[_rootHash].owner == _receiver, "File already exists!");
+        require(_fileList[_rootHash].owner != _receiver, "File already exists!");
         _fileList[_rootHash].owner = _receiver;
         _fileList[_rootHash].fileName = _fileName;
         _fileList[_rootHash].timestamp = _timestamp;
@@ -279,7 +279,7 @@ contract DS is Context, Ownable {
         protocol _protocol, 
         uint256 _port
     ) public returns(bool) {
-        require(_nodeList[_nodeId].owner == _msgSender(), "Node already exists!");
+        require(_nodeList[_nodeId].owner != _msgSender(), "Node already exists!");
         _nodeList[_nodeId].owner = _msgSender();
         _nodeList[_nodeId].nodeId = _nodeId;
         _nodeList[_nodeId].ipAddress = _ipAddress;
