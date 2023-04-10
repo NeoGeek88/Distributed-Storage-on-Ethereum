@@ -159,8 +159,14 @@ class Connector:
 						if is_valid_uuid:
 							node_id = chunk_obj["node_id"]
 						else: 
-							return {"args": None, "err": "NODE ID IS NOT VALID UUID."}
-						file_chunks.append([chunk_hash, node_id])
+							return {"args": None, "err": "NODE ID IS NOT VALID UUID."}     
+						
+						is_valid_uuid = self.is_valid_uuid(chunk_obj["chunk_id"])
+						if is_valid_uuid:
+							chunk_id = chunk_obj["chunk_id"]
+						else:
+							return {"args": None, "err": "CHUNK ID IS NOT VALID UUID."}          
+						file_chunks.append([chunk_hash, node_id, chunk_id])
 				except:
 					return {"args": None, "err": "ERROR WHEN PARSING THE FILE CHUNK DETAILS."}
 			else: 
@@ -342,6 +348,7 @@ class Connector:
 				chunk = {}
 				chunk["chunk_hash"] = c[0].hex()
 				chunk["node_id"] = c[1]
+				chunk["chunk_id"] = c[2]
 				file["file_chunks"].append(chunk)
 
 			list_file.append(file)
@@ -389,7 +396,7 @@ class Connector:
 		Output: Transaction receipt with information such as transaction status (Success=1, Fail=0), or error message string if any.
 		'''
 		process_status = self.file_preprocess(file_json)
-		if process_status["args"] is not None: 
+		if process_status["args"] is not None:
 			receipt = self.sign_transaction("addFile", process_status["args"])
 			if receipt["status"] == 1:
 				return {"status": 1, "receipt": receipt}
@@ -397,6 +404,24 @@ class Connector:
 				return {"status": 0, "receipt": receipt}
 		else:
 			return {"status": 0, "receipt": process_status["err"]}
+
+
+	def add_shared_file(self, receiver_addr, file_json):
+		'''
+		Input: Receiver address + File details including file name, timestamp, file size, chunk size, redundancy, file root hash, file chunks info.
+		Output: Transaction receipt with information such as transaction status (Success=1, Fail=0), or error message string if any.
+		'''
+		process_status = self.file_preprocess(file_json)
+		if process_status["args"] is not None:
+			args = [receiver_addr] + process_status["args"]
+			receipt = self.sign_transaction("addSharedFile", args)
+			if receipt["status"] == 1:
+				return {"status": 1, "receipt": receipt}
+			else:
+				return {"status": 0, "receipt": receipt}
+		else:
+			return {"status": 0, "receipt": process_status["err"]}
+
  
 
 	def retrieve_file(self, root_hash):
@@ -424,6 +449,7 @@ class Connector:
 			chunk = {}
 			chunk["chunk_hash"] = c[0].hex()
 			chunk["node_id"] = c[1]
+			chunk["chunk_id"] = c[2]
 			retrieved_file["file_chunks"].append(chunk)
 		
 		retrieved_file_json = json.dumps(retrieved_file)
@@ -585,11 +611,11 @@ if __name__ == '__main__':
 	
 	# ============= FILE ============
 	# Retrieve all files:
-	receipt = conn.list_file()
+	# receipt = conn.list_file()
 	
 	# Upload file:
- 	# file name, timestamp, file size, chunk size, redundancy, file root hash, file chunks info.
-	# receipt = conn.upload_file('{"file_name": "Cloud", "timestamp": 1, "file_size": "100", "chunk_size": 2, "redundancy": 1, "root_hash": "0x52f215a01392f27cb930d13954f402a798cb63b67fa88a3d3a9c3649af10dc8b", "file_chunks": [{"chunk_hash":"0x5808f6d31f38b0557f3e0d3c3a3ec1e0e57f0ee9b31d1ab2662b2f16b47b0565", "node_id": "5338d5e4-6f3e-45fe-8af5-e2d96213b3f0"},{"chunk_hash":"0x5f5bb5f5e0648b04988ec1dd0c157a90a79871a8c31bf170d94c33a7f62fb955", "node_id": "e46b3dc7-11f2-4b9c-8693-3eae76c03735"}]}')
+	# file name, timestamp, file size, chunk size, redundancy, file root hash, file chunks info.
+	receipt = conn.add_shared_file("0xe9B9827aBEE8d4E164E5E7Dce66f2E02009C4De3",'{"file_name": "FINAL", "timestamp": 1, "file_size": 100, "chunk_size": 2, "redundancy": 1, "root_hash": "0x52f215a01392f27cb930d13954f402a798cb63b67fa88a3d3a9c3649af10dc8b", "file_chunks": [{"chunk_hash":"0x5808f6d31f38b0557f3e0d3c3a3ec1e0e57f0ee9b31d1ab2662b2f16b47b0568", "node_id": "5338d5e4-6f3e-45fe-8af5-e2d96213b3f0", "chunk_id": "d0cfa1b4-4f9b-4bb8-bb24-16c86b15f135"}, {"chunk_hash":"0x5f5bb5f5e0648b04988ec1dd0c157a90a79871a8c31bf170d94c33a7f62fb954", "node_id": "e46b3dc7-11f2-4b9c-8693-3eae76c03735", "chunk_id": "913c8e8a-5c5a-435d-9dc5-30b8cc7c140e"}]}')
 	
 	# Get single file:
 	# receipt = conn.retrieve_file("0x7f2c17a8d7e82fc0aefb7d9a03761d72bfe31f92879e63f1bc6b3a3d2f6b1d6c")
