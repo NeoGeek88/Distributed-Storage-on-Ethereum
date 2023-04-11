@@ -81,22 +81,54 @@ To set up the Client software, follow these steps:
 
 
 #### Node Setup
+The storage node provides 5 HTTP APIs.
 
-Create the virtual environments
+- `/chunk` POST request: Allows the node to receive and store chunk data sent from a client. The data is saved into a database indexed by a randomly generated ID.
+- `/chunk/verify` GET request: Request the node to verify its saved chunks are registered on the blockchain, thus allowing these chunks to be available for downloading.
+- `/chunk/<id>` GET request: Requests the node to check the availability of a chunk whose id is `<id>` and sends the chunk back to the client for downloading files.
+- `/chunk/<id>/check` GET request: Requests the node to provide a hash value of the chunk with id of `<id>`,  to check if the chunk is stored properly.
+- `/chunk/<id>/remove` DELETE request: Requests the node to remove the chunk with id `<id>`.
 
-```shell
-python3 -m venv .venv
+Before start a storage node, you need to save the ethereum credentials into `.env` file under the running path. Keep this file in a safe envrionment.
+
+```
+INFURA_NODE_ENDPOINT="https://sepolia.infura.io/v3/325c2e4f72b743a99bf8325760da19c5"
+CONTRACT_ADDRESS=0x70C251E437a894f57b07Ae8a8bed120c0bAbE223
+WALLET_PUBLIC_ADDRESS=<your wallet address>
+WALLET_PRIVATE_KEY=<your wallet private key>
 ```
 
-Activate the virtual environment
+```
+usage: server.py [-h] [-p PORT] [-H IP] [-d DOMAIN] [-c CONFIG]
 
-```shell
-source .venv/bin/activate
+Distributed Storage Server
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -p PORT, --port PORT  Port number (default: 3000)
+  -H IP, --ip-address IP
+                        Host address (default: 127.0.0.1)
+  -d DOMAIN, --domain DOMAIN
+                        Host domain (default: localhost)
+  -c CONFIG, --config CONFIG
+                        Config file path
 ```
 
-Install dependencies
+To start a local storage node on port 3000, and save the config file to `./config.json`.
 
 ```shell
-pip3 install -r requirements.txt
+cd Server
+python3 server.py -H 127.0.0.1 -d localhost -p 3000 -c ./config.json
 ```
+
+
+We provide two `.env` files that contains ethereum key pair for testers, you can search Sepolia Faucet to acquire test Ethereums.
+
+```
+
+```
+
+```
+```
+
 
