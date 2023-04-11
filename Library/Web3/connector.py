@@ -596,9 +596,7 @@ class Connector:
 		Input: File root hash, chunk hash, and the index of the chunk.
 		Output: Boolean value inform whether the proof provided matches the root hash or not. 
 		'''
-		args = [root_hash, leaf_hash, index]
-
-		raw_proof_result = self.contract.functions.performMerkleProof(args).call({
+		raw_proof_result = self.contract.functions.performMerkleProof(root_hash, leaf_hash, index).call({
 			"from": os.getenv("WALLET_PUBLIC_ADDRESS")
 		})
 		
