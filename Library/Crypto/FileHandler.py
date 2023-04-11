@@ -379,6 +379,13 @@ class FileHandler:
         #6. combine the data_list
         recovered_content = self.combine(data_list)
         return recovered_content
+    
+    def recover_helper(self, rs_data_list, file_size):
+        #1. recover using reedsolomon redundancy method
+        enc_data_list = self.rs_dec(rs_data_list, file_size)
+        #2. redundancy using reedsolomon encoding
+        rs_data_list = self.rs_enc(enc_data_list)
+        return rs_data_list
 
 
 
