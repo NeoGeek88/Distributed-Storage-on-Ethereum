@@ -299,7 +299,7 @@ class FileHandler:
 
         padded_file_size = self.chunk_size * (int(file_size / self.chunk_size) + (1 if (file_size % self.chunk_size) != 0 else 0))
         data_length = int(padded_file_size / databyte) * 255 + (padded_file_size % databyte) + eccbyte
-        processed_data_length = (int(len(data_length)/255)+1) * 255
+        processed_data_length = (int(data_length/255+1)) * 255
 
         received_data = received_data[:processed_data_length]
 

@@ -199,11 +199,15 @@ class Client:
         return chunks_data
 
 
+    def remove_chunks_from_server(self, nodes_info):
 
-
-    # TODO: remove chunks from server
-    def remove_chunks_from_server(self, node_ips_server):
-        return
+        for node in nodes_info:
+            # Remove the failed chunk
+            response = requests.get(f"http://{node['ip_address']}:{node['port']}/chunk/{node['chunkId']}"
+                                    f"/remove")
+            if response.status_code != 200:
+                print(f"Failed to remove chunk {node['chunkId']}")
+        return response
 
     def get_available_nodes(self):
         # Mock avaiable nodes for testing , 'faf8fc10-5775-4006-a555-372ae34ade31'
@@ -282,7 +286,7 @@ class Client:
         self.new_file_handler = FileHandler(self.wallet_public_address, f'0x{self.wallet_private_key}')
 
         # Define the interval between verification checks (in seconds)
-        interval = 2
+        interval = 3600
 
         while True:
             # Wait for the specified interval
@@ -297,10 +301,7 @@ class Client:
             selected_file_metadata = random.choice(files_metadata)
 
             # Randomly select a chunk from the file
-            #selected_chunk_metadata = random.choice(selected_file_metadata["file_chunks"])
-
-            #Mock chunk
-            selected_chunk_metadata = selected_file_metadata["file_chunks"][6]
+            selected_chunk_metadata = random.choice(selected_file_metadata["file_chunks"])
 
             # Get the chunk id of the selected chunk
             selected_chunk_id = selected_chunk_metadata["chunk_id"]
@@ -334,7 +335,7 @@ class Client:
                 # Get the Merkle proof for the selected chunk
 
                 merkle_proof = self.connector.merkle_proof(f'0x{chunk_root_hash}',
-                                                           f'0x{chunk_root_hash}',
+                                                           f'0x{chunk_hash1}',
                                                            index)
 
             if merkle_proof == "true":
@@ -885,38 +886,36 @@ class Client:
 
         if answers['remove_file']:
 
-            # Get IP addresses of nodes
-            node_ips = {}
-            for node_id in node_ids:
-                node_json = self.connector.get_node(node_id)
-                node = json.loads(node_json)
-                node_ips[node_id] = node["ip_address"]
-
-            # Construct the file metadata for the server
-            node_ips_server = {}
+            # Extract node ids from the selected file metadata
+            nodes_selected_file = []
             for chunk in selected_file_metadata["file_chunks"]:
-                node_id = chunk["node_id"]
-                chunk_hash = chunk["chunk_hash"]
-                ip_address = node_ips[node_id]
-                node_ips_server[chunk_hash] = ip_address
+                # node_ids.append(chunk["node_id"])
+                nodes_selected_file.append(json.loads(self.connector.get_node(chunk["node_id"])))
 
-            # # Remove nodes from server
-            # # TODO: if failed, do sth
-            # self.remove_chunks_from_server(node_ips_server)
+            nodes_info = [{
+                "node_id": node["node_id"],
+                "ip_address": node["ip_address"],
+                "port": node["port"],
+                "chunkId": chunk["chunk_id"]}
+                for chunk, node in zip(selected_file_metadata["file_chunks"], nodes_selected_file)]
+            # Remove file from server
+            response = self.remove_chunks_from_server(nodes_info)
 
-            # Remove the file from the smart contract
-            # receipt = await asyncio.wait_for(self.connector.remove_file(selected_file_metadata["root_hash"]), timeout=None)
+            if response.status_code != 200:
+                print(f"Failed to remove file {selected_file_metadata['file_name']}")
+            else:
+                print(f"Remove file {selected_file_metadata['file_name']} successfully")
+
 
             # Set up retry count
             retry_count = 0
 
             # Upload the metadata to the smart contract, retrying up to 3 times if necessary
             while retry_count < 3:
-                # TODO: BYTES OR BYTES32?
-                receipt = self.connector.remove_file(bytes(selected_file_metadata["root_hash"], "utf8"))
+                receipt = self.connector.remove_file(f'0x{selected_file_metadata["root_hash"]}')
 
                 if receipt['status'] == 1:
-                    print("File metadata uploaded to blockchain successfully!")
+                    print(f"Remove file {selected_file_metadata['file_name']} from blockchain successfully!")
                     break  # Exit the loop if successful
                 else:
                     retry_count += 1
@@ -924,7 +923,7 @@ class Client:
 
             # Check if the upload was successful after retrying
             if receipt['status'] != 1:
-                print("Failed to upload file metadata to blockchain after 3 attempts. Aborting upload.")
+                print("Failed to remove file metadata from blockchain after 3 attempts. Aborting upload.")
 
             return
 
