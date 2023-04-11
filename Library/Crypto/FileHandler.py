@@ -45,7 +45,10 @@ class FileHandler:
         This function is used to generate the ethereum public address based on its public key
         """
         # Step 1: Convert the public key to uncompressed format
-        uncompressed_public_key = public_key.to_bytes()
+        if isinstance(public_key, bytes):
+            uncompressed_public_key = public_key
+        else:
+            uncompressed_public_key = public_key.to_bytes()
         # Step 2: Hash the uncompressed public key using Keccak-256
         hash_value = keccak(uncompressed_public_key)
         # Step 3: Take the last 20 bytes of the hash value to get the Ethereum public address
