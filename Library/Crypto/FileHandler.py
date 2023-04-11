@@ -3,7 +3,7 @@ from eth_utils import keccak, encode_hex, decode_hex
 from eth_utils import to_checksum_address
 from reedsolo import RSCodec, ReedSolomonError
 from Crypto.PublicKey import ECC
-#from py_ecc import optimized_bls12_381 as b
+from py_ecc import optimized_bls12_381 as b
 from ecdsa import SigningKey, SECP256k1, VerifyingKey
 from ecdsa.ellipticcurve import Point
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -45,7 +45,10 @@ class FileHandler:
         This function is used to generate the ethereum public address based on its public key
         """
         # Step 1: Convert the public key to uncompressed format
-        uncompressed_public_key = public_key.to_bytes()
+        if isinstance(public_key, bytes):
+            uncompressed_public_key = public_key
+        else:
+            uncompressed_public_key = public_key.to_bytes()
         # Step 2: Hash the uncompressed public key using Keccak-256
         hash_value = keccak(uncompressed_public_key)
         # Step 3: Take the last 20 bytes of the hash value to get the Ethereum public address
@@ -299,7 +302,7 @@ class FileHandler:
 
         padded_file_size = self.chunk_size * (int(file_size / self.chunk_size) + (1 if (file_size % self.chunk_size) != 0 else 0))
         data_length = int(padded_file_size / databyte) * 255 + (padded_file_size % databyte) + eccbyte
-        processed_data_length = (int(data_length/255+1)) * 255
+        processed_data_length = (int(data_length/255)+1) * 255
 
         received_data = received_data[:processed_data_length]
 
@@ -392,30 +395,33 @@ class FileHandler:
         return rs_data_list
 
 
-# ##---------------- neo given
-# public_addr_1 = "0xD4cdE7b7480CC3228D3725FB1b8D8d4226267bA3"
-# private_key_1 = "0x7004f17e0cab05642f36e8ddb30b778c4ba5b6d2bc2a17338aaff3b26c55e241"
-# public_key_1 = "0x47d9eab50b1eabd3f493e807ba3ff22f387dcf146430e31f42c98b7ec7fbc9a40eef2080249846ca63521da29f0bcaa2049a0105cbd865d91973059a10d00daa"
-# ##---------------- neo given
-# public_addr_2 =  "0x290FABa2538A49e641e92f330CCA5afc1Ff2076C"
-# private_key_2 =  "0xb6c5753277f0f69e8f66196293772ce624d90a58edbfd9275ec426744ecd2dcf"
-# public_key_2 = "0xa4c6fcffb1411ba3c5335f9971114603d4c58f3b53e149f1a78128de50f475f2a2b22b780c9a94c83e4de662f54fd826a239633a0e3cb0c4537f591a70a386c0"
-# ##---------------- neo given
-# public_addr_3 = "0x58148928Cc24aA0f4025F171cDF958eA24143211"
-# private_key_3 = "0x4a561ed4832e2787355f63010ffa05453bf190b7f50b5aa8d01433a6a4fbe67a"
-# public_key_3 = "0x583f3823024eff1d6c19cd93a4b8fb48a3bd2d8e868ddcc26ffa99553046bbf77eb1fdb85d463b73d639ad395c7c7307d29510c1781032ef450c739d8415b1cc"
-# ##---------------- yoyo generate
-# public_addr_4 ="0x28AbB50DdB82da709E2e47Eef2ECAdAC5e230e83"
-# private_key_4 = "0x3077020101042085af18963da3c5ae8e1b3f5315769048a1dd604968a3605fb9"
-# public_key_4 ="0xaf1e8c0521f5bc7ce85a3b4c2e312cc2458b62db3f0a7660c285abaa77dc09d4d83a34074648e077ad9f1f217ce23921c47e5e0d7920ef6d5087f9a9bdb6fd59"
-#
-# handler = FileHandler('0xD4cdE7b7480CC3228D3725FB1b8D8d4226267bA3', '0x7004f17e0cab05642f36e8ddb30b778c4ba5b6d2bc2a17338aaff3b26c55e241')
-# ##----------------
-# ##verify that the encryption/decryptin using an symmetric aes key is correct
-# data_chunk = b'This is a sample data chunk that will be encrypted and decrypted using AES in CBC mode with PKCS#7 padding.'
-# encoded_data_chunk = handler.uploader_helper(data_chunk)
-#
-# decoded_data_chunk = handler.downloader_helper(encoded_data_chunk[0], len(data_chunk))
+
+    
+
+##---------------- neo given
+public_addr_1 = "0xD4cdE7b7480CC3228D3725FB1b8D8d4226267bA3"
+private_key_1 = "0x7004f17e0cab05642f36e8ddb30b778c4ba5b6d2bc2a17338aaff3b26c55e241"
+public_key_1 = "0x47d9eab50b1eabd3f493e807ba3ff22f387dcf146430e31f42c98b7ec7fbc9a40eef2080249846ca63521da29f0bcaa2049a0105cbd865d91973059a10d00daa"
+##---------------- neo given 
+public_addr_2 =  "0x290FABa2538A49e641e92f330CCA5afc1Ff2076C"
+private_key_2 =  "0xb6c5753277f0f69e8f66196293772ce624d90a58edbfd9275ec426744ecd2dcf"           
+public_key_2 = "0xa4c6fcffb1411ba3c5335f9971114603d4c58f3b53e149f1a78128de50f475f2a2b22b780c9a94c83e4de662f54fd826a239633a0e3cb0c4537f591a70a386c0"
+##---------------- neo given
+public_addr_3 = "0x58148928Cc24aA0f4025F171cDF958eA24143211"
+private_key_3 = "0x4a561ed4832e2787355f63010ffa05453bf190b7f50b5aa8d01433a6a4fbe67a"
+public_key_3 = "0x583f3823024eff1d6c19cd93a4b8fb48a3bd2d8e868ddcc26ffa99553046bbf77eb1fdb85d463b73d639ad395c7c7307d29510c1781032ef450c739d8415b1cc"
+##---------------- yoyo generate
+public_addr_4 ="0x28AbB50DdB82da709E2e47Eef2ECAdAC5e230e83"
+private_key_4 = "0x3077020101042085af18963da3c5ae8e1b3f5315769048a1dd604968a3605fb9"
+public_key_4 ="0xaf1e8c0521f5bc7ce85a3b4c2e312cc2458b62db3f0a7660c285abaa77dc09d4d83a34074648e077ad9f1f217ce23921c47e5e0d7920ef6d5087f9a9bdb6fd59"
+
+handler = FileHandler('0xD4cdE7b7480CC3228D3725FB1b8D8d4226267bA3', '0x7004f17e0cab05642f36e8ddb30b778c4ba5b6d2bc2a17338aaff3b26c55e241')
+##---------------- 
+##verify that the encryption/decryptin using an symmetric aes key is correct
+data_chunk = b'This is a sample data chunk that will be encrypted and decrypted using AES in CBC mode with PKCS#7 padding.'
+encoded_data_chunk = handler.uploader_helper(data_chunk)
+
+decoded_data_chunk = handler.downloader_helper(encoded_data_chunk[0], len(data_chunk))
 ##----------------
 ##reed-solomon redundancy
 

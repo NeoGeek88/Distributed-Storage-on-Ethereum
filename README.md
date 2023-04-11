@@ -4,38 +4,38 @@
 
 Our existing Smart Contract deployed on the Sepolia testnet is at https://sepolia.etherscan.io/address/0x89c509099abc732b2023889f8affabf30c60bb6b
 
-Or you can use 4 .sol files inside the Contract folder to deploy a Smart Contract by your self.
+Or you can use 4 `.sol` files inside the Contract folder to deploy a Smart Contract by your self.
 
 #### Client Setup
 
 To use the client application, the user needs to provide the following information:
 
-- INFURA_NODE_ENDPOINT: This is the endpoint for the Infura node used to connect to the Ethereum blockchain.
+- `INFURA_NODE_ENDPOINT`: This is the endpoint for the [Infura API Key](https://www.infura.io/) used to connect to the Ethereum blockchain.
 
-- CONTRACT_ADDRESS: This is the address of the smart contract used to store the file information on the blockchain.
+- `CONTRACT_ADDRESS`: This is the address of the smart contract used to store the file information on the blockchain.
 
-- WALLET_PUBLIC_ADDRESS: This is the public address of the Ethereum wallet used to interact with the smart contract.
+- `WALLET_PUBLIC_ADDRESS`: This is the public address of the user Ethereum wallet used to interact with the smart contract.
 
-- WALLET_PRIVATE_KEY: This is the private key of the Ethereum wallet used to sign transactions on the blockchain.
+- `WALLET_PRIVATE_KEY`: This is the private key of the user Ethereum wallet used to sign transactions on the blockchain.
 
 ##### Libraries used:
 The following libraries are required to run the Client software:
 
-- inquirer: This library is used to provide an interactive command-line interface for the user.
+- `inquirer`: This library is used to provide an interactive command-line interface for the user.
 
-- requests: This library is used to make HTTP requests to the storage nodes.
+- `requests`: This library is used to make HTTP requests to the storage nodes.
 
-- numpy: This library is used to manipulate arrays and perform mathematical operations.
+- `numpy`: This library is used to manipulate arrays and perform mathematical operations.
 
-- base64: This library is used to encode and decode binary data in base64 format.
+- `base64`: This library is used to encode and decode binary data in base64 format.
 
-- MerkleTree: This is a custom class that implements the Merkle tree data structure.
+- `MerkleTree`: This is a custom class that implements the Merkle tree data structure.
 
-- FileHandler: This is a custom class that handles the encryption, split, encode, decode, and merge. (may need to rewrite?)
+- `FileHandler`: This is a custom class that handles the encryption, split, encode, decode, and merge. (may need to rewrite?)
 
-- dotenv: This library is used to load environment variables from a .env file.
+- `dotenv`: This library is used to load environment variables from a `.env` file.
 
-- threading: This library is used to create a background thread that periodically verifies the integrity of the uploaded chunks.
+- `threading`: This library is used to create a background thread that periodically verifies the integrity of the uploaded chunks.
 
 ##### Connecting to the nodes:
 
@@ -45,19 +45,19 @@ To set up the Client software, follow these steps:
 
 - Clone the project from GitHub and navigate to the root directory.
 
-- Install the necessary dependencies by running pip install -r requirements.txt.
+- Install the necessary dependencies by running `pip install -r requirements.txt`.
 
-- If there is no .env file in your directory. The client program will create .env for you in the first time.
+- If there is no `.env` file in your directory. The client program will create `.env` for you in the first time.
 
-- In the .env file, set the following environment variables:
+- In the `.env` file, set the following environment variables:
 
-  - INFURA_NODE_ENDPOINT: The endpoint URL for your Infura node.
+  - `INFURA_NODE_ENDPOINT`: The endpoint URL for your Infura node.
 
-  - CONTRACT_ADDRESS: The address of the smart contract.
+  - `CONTRACT_ADDRESS`: The address of the smart contract.
 
-  - WALLET_PUBLIC_ADDRESS: Your wallet's public address.
+  - `WALLET_PUBLIC_ADDRESS`: Your wallet's public address.
 
-  - WALLET_PRIVATE_KEY: Your wallet's private key.
+  - `WALLET_PRIVATE_KEY`: Your wallet's private key.
 
 - If any of the above environment variables are missing, the program will prompt you to enter the required information.
 
