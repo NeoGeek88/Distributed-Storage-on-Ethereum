@@ -257,17 +257,25 @@ class Client:
         with open(file_path, 'rb') as f:
             return f.read()
     # Convert str to bytes32
-    def string_to_bytes32(self, s: str) -> bytes:
-        if not isinstance(s, str):
-            raise ValueError("Input must be a string")
+    # def string_to_bytes32(self, s: str) -> bytes:
+    #     if not isinstance(s, str):
+    #         raise ValueError("Input must be a string")
+    #
+    #     encoded = s.encode('utf-8')
+    #     if len(encoded) > 32:
+    #         # Truncate to 32 bytes if the string is too long
+    #         return encoded[:32]
+    #     else:
+    #         # Pad with zeros if the string is too short
+    #         return encoded + b'\x00' * (32 - len(encoded))
 
-        encoded = s.encode('utf-8')
-        if len(encoded) > 32:
-            # Truncate to 32 bytes if the string is too long
-            return encoded[:32]
-        else:
-            # Pad with zeros if the string is too short
-            return encoded + b'\x00' * (32 - len(encoded))
+    def string_to_bytes32(self, s: str) -> bytes:
+        my_bytes = s.encode('utf-8')  # convert to bytes
+        if len(my_bytes) > 32:
+            return my_bytes[:32]
+        my_bytes32 = bytearray(32)
+        my_bytes32[:len(my_bytes)] = my_bytes# pad with zeroes if necessary
+        return my_bytes32
 
     def verify_chunks_periodically(self):
         # Pass wallet public address and private key to File Handler
@@ -319,9 +327,11 @@ class Client:
             # Convert root hash and chunk hash into bytes32
             chunk_root_hash = selected_file_metadata["root_hash"]
             bytes32_chunk_root_hash = self.string_to_bytes32(chunk_root_hash)
+            bytes_chunk_root_hash = chunk_root_hash.encode('utf-8')
 
             # Get the Merkle proof for the selected chunk
-            merkle_proof = self.connector.merkle_proof(chunk_root_hash, chunk_root_hash,
+            merkle_proof = self.connector.merkle_proof(hex(int(f'0x{chunk_root_hash}', 16)),
+                                                       hex(int(f'0x{chunk_root_hash}', 16)),
                                                        index)
 
             if merkle_proof:
