@@ -3,7 +3,7 @@ from eth_utils import keccak, encode_hex, decode_hex
 from eth_utils import to_checksum_address
 from reedsolo import RSCodec, ReedSolomonError
 from Crypto.PublicKey import ECC
-from py_ecc import optimized_bls12_381 as b
+#from py_ecc import optimized_bls12_381 as b
 from ecdsa import SigningKey, SECP256k1, VerifyingKey
 from ecdsa.ellipticcurve import Point
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF

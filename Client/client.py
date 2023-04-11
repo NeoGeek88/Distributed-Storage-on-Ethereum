@@ -246,7 +246,7 @@ class Client:
         self.new_file_handler = FileHandler(self.wallet_public_address, f'0x{self.wallet_private_key}')
 
         # Define the interval between verification checks (in seconds)
-        interval = 3600
+        interval = 1
 
         while True:
             # Wait for the specified interval
@@ -261,7 +261,9 @@ class Client:
             selected_file_metadata = random.choice(files_metadata)
 
             # Randomly select a chunk from the file
-            selected_chunk_metadata = random.choice(selected_file_metadata["file_chunks"])
+            #selected_chunk_metadata = random.choice(selected_file_metadata["file_chunks"])
+            selected_chunk_metadata = selected_file_metadata["file_chunks"][3]
+
 
             # Get the chunk id of the selected chunk
             selected_chunk_id = selected_chunk_metadata["chunk_id"]
@@ -292,7 +294,7 @@ class Client:
 
                 # Get the Merkle proof for the selected chunk
                 merkle_proof = self.connector.merkle_proof(f'0x{chunk_root_hash}',
-                                                           f'0x{chunk_hash1}',
+                                                           f'0x{chunk_root_hash}',
                                                            index)
 
             if merkle_proof == "true":
@@ -377,6 +379,8 @@ class Client:
                     print("File metadata updated to blockchain successfully")
                 else:
                     print("Failed to update file metadata")
+
+                response_verify = requests.get(f"http://{node_info['node_ip']}:{node_info['port']}/chunk/verify")
 
                 print("Failed verification fixed")
             else:

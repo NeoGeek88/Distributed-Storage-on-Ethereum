@@ -38,6 +38,6 @@ numpy~=1.24.2
 python-dotenv~=1.0.0
 requests~=2.28.2
 Flask~=2.2.3
-reedsolo~=2.0.13
+reedsolo~=1.7.0
 ecdsa~=0.18.0
 cryptography~=40.0.1
