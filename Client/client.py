@@ -269,13 +269,13 @@ class Client:
     #         # Pad with zeros if the string is too short
     #         return encoded + b'\x00' * (32 - len(encoded))
 
-    def string_to_bytes32(self, s: str) -> bytes:
-        my_bytes = s.encode('utf-8')  # convert to bytes
-        if len(my_bytes) > 32:
-            return my_bytes[:32]
-        my_bytes32 = bytearray(32)
-        my_bytes32[:len(my_bytes)] = my_bytes# pad with zeroes if necessary
-        return my_bytes32
+    # def string_to_bytes32(self, s: str) -> bytes:
+    #     my_bytes = s.encode('utf-8')  # convert to bytes
+    #     if len(my_bytes) > 32:
+    #         return my_bytes[:32]
+    #     my_bytes32 = bytearray(32)
+    #     my_bytes32[:len(my_bytes)] = my_bytes# pad with zeroes if necessary
+    #     return my_bytes32
 
     def verify_chunks_periodically(self):
         # Pass wallet public address and private key to File Handler
@@ -288,6 +288,8 @@ class Client:
             # Wait for the specified interval
             time.sleep(interval)
 
+            if len(json.loads(self.connector.list_file())) == 0:
+                return
             # Get the files metadata from the network
             files_metadata = json.loads(self.connector.list_file())
 
@@ -295,7 +297,10 @@ class Client:
             selected_file_metadata = random.choice(files_metadata)
 
             # Randomly select a chunk from the file
-            selected_chunk_metadata = random.choice(selected_file_metadata["file_chunks"])
+            #selected_chunk_metadata = random.choice(selected_file_metadata["file_chunks"])
+
+            #Mock chunk
+            selected_chunk_metadata = selected_file_metadata["file_chunks"][6]
 
             # Get the chunk id of the selected chunk
             selected_chunk_id = selected_chunk_metadata["chunk_id"]
@@ -310,155 +315,204 @@ class Client:
             # Get the port of the node
             selected_node_port = selected_node_metadata["port"]
 
-            # # Call Server function to pass the hash of the chunk to server and get the hash after server calculation
-            # # TODO: according to server's hask related api to input chunk id and get hash
-            # response = requests.post(f"http://{selected_node_ip}:{selected_node_port}/chunk/{selected_chunk_id}",
-            #                          data=json.dumps(selected_chunk_id))
-            # if response.status_code != 200:
-            #     print("Error getting chunk hash")
-            #     continue
-            # chunk_hash = json.loads(response.content)
-            # chunk_hash1 = chunk_hash['chunkHash']
+            # Call Server function to pass the id of the chunk to server and get the hash after server calculation
+            response = requests.get(f"http://{selected_node_ip}:{selected_node_port}/chunk/{selected_chunk_id}/check")
+
+            if response.status_code == 200:
+                chunk_hash = json.loads(response.content)
+                chunk_hash1 = chunk_hash['hash']
 
 
-            # Get the index of the selected chunk
-            index = selected_file_metadata["file_chunks"].index(selected_chunk_metadata)
+                # Get the index of the selected chunk
+                index = selected_file_metadata["file_chunks"].index(selected_chunk_metadata)
 
-            # Convert root hash and chunk hash into bytes32
-            chunk_root_hash = selected_file_metadata["root_hash"]
-            bytes32_chunk_root_hash = self.string_to_bytes32(chunk_root_hash)
-            bytes_chunk_root_hash = chunk_root_hash.encode('utf-8')
+                # Convert root hash and chunk hash into bytes32
+                chunk_root_hash = selected_file_metadata["root_hash"]
+                # #bytes32_chunk_root_hash = self.string_to_bytes32(chunk_root_hash)
+                # bytes_chunk_root_hash = chunk_root_hash.encode('utf-8')
 
-            # Get the Merkle proof for the selected chunk
-            merkle_proof = self.connector.merkle_proof(hex(int(f'0x{chunk_root_hash}', 16)),
-                                                       hex(int(f'0x{chunk_root_hash}', 16)),
-                                                       index)
+                # Get the Merkle proof for the selected chunk
 
-            if merkle_proof:
+                merkle_proof = self.connector.merkle_proof(f'0x{chunk_root_hash}',
+                                                           f'0x{chunk_root_hash}',
+                                                           index)
+
+            if merkle_proof == "true":
                 print(f"Chunk {selected_chunk_id} from file {selected_file_metadata['file_name']} is verified")
                 continue
-            else:
+            elif merkle_proof == "false" or response.status_code == 408:
                 print(
                     f"Chunk {selected_chunk_id} from file {selected_file_metadata['file_name']} failed verification")
 
                 # Extract node ids from the selected file metadata
-                node_ids = []
+                nodes_selected_file = []
                 for chunk in selected_file_metadata["file_chunks"]:
-                    node_ids.append(chunk["node_id"])
+                    # node_ids.append(chunk["node_id"])
+                    nodes_selected_file.append(json.loads(self.connector.get_node(chunk["node_id"])))
 
-                # Get IP addresses of nodes
-                node_ips = {}
-                for node_id in node_ids:
-                    node_json = self.connector.get_node(node_id)
-                    node = json.loads(node_json)
-                    node_ips[node_id] = node["ip_address"]
+                nodes_info = [{
+                    "node_id": node["node_id"],
+                    "ip_address": node["ip_address"],
+                    "port": node["port"],
+                    "chunkId": chunk["chunk_id"]}
+                    for chunk, node in zip(selected_file_metadata["file_chunks"], nodes_selected_file)]
 
-                # Construct the file metadata for the server
-                node_ips_server = {}
-                for chunk in selected_file_metadata["file_chunks"]:
-                    node_id = chunk["node_id"]
-                    chunk_hash = chunk["chunk_hash"]
-                    ip_address = node_ips[node_id]
-                    node_ips_server[chunk_hash] = ip_address
+                # Get available nodes and select a random subset to store chunks
+                available_nodes_sc = json.loads(self.connector.list_nodes())
+
+                # Randomly select node
+                random_node = random.choice(available_nodes_sc)
+
+                # Get node info
+                node_info = json.loads(self.connector.get_node(random_node["node_id"]))
 
                 # Download chunks from server
-                file_chunks = self.download_chunks_from_server(node_ips_server)
+                file_chunks = self.download_chunks_from_server(nodes_info)
 
                 # Replace the invalid chunk with zeros
                 corrected_chunk = b'\x00' * self.chunk_size
-                file_chunks[index] = corrected_chunk
+                file_chunks[index] = bytearray(corrected_chunk)
 
-                # Recover the file by using downloader_helper
-                data = self.new_file_handler.downloader_helper(file_chunks, len(file_chunks))
-
+                # Get file size and name
                 file_name = selected_file_metadata['file_name']
                 file_size = selected_file_metadata['file_size']
 
-                # Split, Encrypt, Encode the file by using uploader_helper
-                chunk_list = self.new_file_handler.uploader_helper(data)
+                # Recover the file by using downloader_helper
+                recovered_chunks = self.new_file_handler.recover_helper(file_chunks, file_size)
 
-                # Store chunk for server
-                chunk_server = base64.b64encode(chunk_list[0][index]).decode('utf-8')
-                # Hash chunk
-                hashed_chunk = self.merkletree.keccak256(bytes(chunk_list[0][index]), 'bytes')
+                # base64decode chunk
+                b64_recover_chunk = base64.b64encode(recovered_chunks[index]).decode(('utf-8'))
 
-                # # Get available nodes and select a random node to store chunk
-                # available_nodes = self.connector.list_nodes()
+                # Upload the recovered chunk to server
+                headers = {'Content-type': 'application/json'}
+                url = f"http://{node_info['ip_address']}:{node_info['port']}/chunk"
+                response_recovered = requests.post(url, data=json.dumps({
+                    "chunkData": b64_recover_chunk
+                }), headers=headers)
 
-                # mock available_nodes
-                available_nodes_mock = self.get_available_nodes()
+                if response_recovered.status_code == 200:
+                    chunk_id = json.loads(response_recovered.content)
+                    chunk_id1 = chunk_id['chunkId']
+                    print("Uploaded recovered chunk to server successfully ")
+                else:
+                    print("Failed to upload recovered chunk")
 
-                # Get available node list
-                available_nodes = {}
-                available_nodes_id = []
-                for available_node_metadata in available_nodes_mock:
-                    node_id = available_node_metadata["node_id"]
-                    node_ip = available_node_metadata["ip_address"]
-                    available_nodes_id.append(node_id)
-                    available_nodes[node_id] = node_ip
+                # Remove the failed chunk
+                response = requests.get(f"http://{selected_node_ip}:{selected_node_port}/chunk/{selected_chunk_id}"
+                                        f"/remove")
+                if response == 200:
+                    print("Remove failed chunk successfully")
 
-                # randomly select node
-                selected_nodes_id = np.random.choice(available_nodes_id, size=1, replace=True)
+                # Update the file metadata recording to the recovered_chunk
+                selected_file_metadata["file_chunks"][index]["chunk_id"] = chunk_id1
+                selected_file_metadata["file_chunks"][index]["node_id"] = node_info["node_id"]
 
-                # Get current timestamp
-                time_stamp = int(time.time())
+                # Add 0x to hashed chunks and root_hash
+                selected_file_metadata["root_hash"] = "0x" + selected_file_metadata["root_hash"]
+                selected_file_metadata["file_chunks"] = [{"chunk_hash": "0x" + chunk["chunk_hash"], "node_id": chunk["node_id"],
+                                                 "chunk_id": chunk["chunk_id"]} for chunk in
+                                                selected_file_metadata["file_chunks"]]
 
-                # Construct the file metadata for the smart contract
-                file_chunks_SC = selected_file_metadata["file_chunks"]
-                file_chunks_SC[index]["node_id"] = selected_nodes_id
-                selected_file_metadata["file_chunks"] = file_chunks_SC
-                selected_file_metadata["timestamp"] = time_stamp
+                # Upload the file metadata to blockchain
+                receipt = self.connector.update_file(json.dumps(selected_file_metadata))
 
-                # Construct the file metadata for the server
-                file_chunk_server = {
-                    "chunkHash": hashed_chunk.hex(),
-                    "chunkData": chunk_server
-                }
-
-                # Convert the metadata to JSON format for SC
-                json_selected_file_metadata = json.dumps(selected_file_metadata)
-
-                # Convert the metadata to JSON format for server
-                json_file_chunk_server = json.dumps(file_chunk_server)
-
-                headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-                url = f"http://{available_nodes[selected_node_id]}:3000/chunk"
-                retry_count = 0
-                while retry_count < 3:
-                    response = requests.post(url, data=json_file_chunk_server, headers=headers)
-
-                    if response.status_code == 200:
-                        print("The chunk uploaded to server successfully!")
-                        break  # Exit the loop if successful
-                    else:
-                        retry_count += 1
-                        print("Error uploading the chunk to server. Retrying...")
-
-                # Check if the upload was successful after retrying
-                if response.status_code != 200:
-                    print("Server down")
-                    continue
-
-                # Set up retry count
-                retry_count = 0
-
-                # Upload the metadata to the smart contract, retrying up to 3 times if necessary
-                while retry_count < 3:
-                    receipt = self.connector.upload_file(json_selected_file_metadata)
-
-                    if receipt['status'] == 1:
-                        print("File metadata updated to blockchain successfully!")
-                        break  # Exit the loop if successful
-                    else:
-                        retry_count += 1
-                        print("Error updating file to blockchain. Retrying...")
-
-                # Check if the upload was successful after retrying
-                if receipt['status'] != 1:
-                    print("Failed to update file metadata to blockchain after 3 attempts. Aborting upload.")
-                    continue
+                if receipt['status'] == 1:
+                    print("File metadata updated to blockchain successfully")
+                else:
+                    print("Failed to update file metadata")
 
                 print("Failed verification fixed")
+            else:
+                print(f"Server down or chunk does not exist. Error:{response.status_code}")
+                return
+
+
+
+
+                # # Split, Encrypt, Encode the file by using uploader_helper
+                # chunk_list = self.new_file_handler.uploader_helper(data)
+                #
+                # # Store chunk for server
+                # chunk_server = base64.b64encode(chunk_list[0][index]).decode('utf-8')
+                # # Hash chunk
+                # hashed_chunk = self.merkletree.keccak256(bytes(chunk_list[0][index]), 'bytes')
+                #
+                # # # Get available nodes and select a random node to store chunk
+                # # available_nodes = self.connector.list_nodes()
+                #
+                # # mock available_nodes
+                # available_nodes_mock = self.get_available_nodes()
+                #
+                # # Get available node list
+                # available_nodes = {}
+                # available_nodes_id = []
+                # for available_node_metadata in available_nodes_mock:
+                #     node_id = available_node_metadata["node_id"]
+                #     node_ip = available_node_metadata["ip_address"]
+                #     available_nodes_id.append(node_id)
+                #     available_nodes[node_id] = node_ip
+                #
+                # # randomly select node
+                # selected_nodes_id = np.random.choice(available_nodes_id, size=1, replace=True)
+                #
+                #
+                #
+                # # Construct the file metadata for the smart contract
+                # file_chunks_SC = selected_file_metadata["file_chunks"]
+                # file_chunks_SC[index]["node_id"] = selected_nodes_id
+                # selected_file_metadata["file_chunks"] = file_chunks_SC
+                # selected_file_metadata["timestamp"] = time_stamp
+                #
+                # # Construct the file metadata for the server
+                # file_chunk_server = {
+                #     "chunkHash": hashed_chunk.hex(),
+                #     "chunkData": chunk_server
+                # }
+                #
+                # # Convert the metadata to JSON format for SC
+                # json_selected_file_metadata = json.dumps(selected_file_metadata)
+                #
+                # # Convert the metadata to JSON format for server
+                # json_file_chunk_server = json.dumps(file_chunk_server)
+                #
+                # headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+                # url = f"http://{available_nodes[selected_node_id]}:3000/chunk"
+                # retry_count = 0
+                # while retry_count < 3:
+                #     response = requests.post(url, data=json_file_chunk_server, headers=headers)
+                #
+                #     if response.status_code == 200:
+                #         print("The chunk uploaded to server successfully!")
+                #         break  # Exit the loop if successful
+                #     else:
+                #         retry_count += 1
+                #         print("Error uploading the chunk to server. Retrying...")
+                #
+                # # Check if the upload was successful after retrying
+                # if response.status_code != 200:
+                #     print("Server down")
+                #     continue
+                #
+                # # Set up retry count
+                # retry_count = 0
+                #
+                # # Upload the metadata to the smart contract, retrying up to 3 times if necessary
+                # while retry_count < 3:
+                #     receipt = self.connector.upload_file(json_selected_file_metadata)
+                #
+                #     if receipt['status'] == 1:
+                #         print("File metadata updated to blockchain successfully!")
+                #         break  # Exit the loop if successful
+                #     else:
+                #         retry_count += 1
+                #         print("Error updating file to blockchain. Retrying...")
+                #
+                # # Check if the upload was successful after retrying
+                # if receipt['status'] != 1:
+                #     print("Failed to update file metadata to blockchain after 3 attempts. Aborting upload.")
+                #     continue
+                #
+                # print("Failed verification fixed")
 
 
     '''
@@ -589,12 +643,13 @@ class Client:
             print("Chunks uploaded to server successfully!")
         else:
             print("Failed to upload chunks. Error code:", response.status_code)
+            return
 
         # Upload the metadata to the smart contract
         #receipt = await asyncio.wait_for(connector.upload_file(json_metadata), timeout=None)
 
         # Construct the file metadata for the smart contract
-        file_metadata= {
+        file_metadata = {
             "file_name": file_name,
             "file_size": file_size,
             "root_hash": root_hash,
