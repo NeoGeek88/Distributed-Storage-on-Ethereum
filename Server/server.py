@@ -1,7 +1,8 @@
 import sys
+import os
+sys.path.append(os.getcwd())
 sys.path.append('../Library/Web3/')
 sys.path.append('../Library/Crypto/')
-import os
 import time
 import base64
 import uuid

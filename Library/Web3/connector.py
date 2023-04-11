@@ -1,4 +1,6 @@
 import sys
+import os
+sys.path.append(os.getcwd())
 sys.path.append('../Library/Web3/')
 sys.path.append('../Library/Crypto/')
 from web3 import Web3
@@ -19,7 +21,7 @@ class Connector:
 		self.w3 = Web3(Web3.HTTPProvider(os.getenv("INFURA_NODE_ENDPOINT")))
 
 		# Load the contract ABI and contract address.
-		with open('../../Contract/contract_abi.json', 'r') as f:
+		with open('../Contract/contract_abi.json', 'r') as f:
 			contract_abi = json.load(f)
 		
 		contract_address = os.getenv("CONTRACT_ADDRESS")

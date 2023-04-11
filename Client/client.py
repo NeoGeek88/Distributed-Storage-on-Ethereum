@@ -288,7 +288,7 @@ class Client:
 
                 # Get the Merkle proof for the selected chunk
                 merkle_proof = self.connector.merkle_proof(f'0x{chunk_root_hash}',
-                                                           f'0x{chunk_root_hash}',
+                                                           f'0x{chunk_hash1}',
                                                            index)
 
             if merkle_proof == "true":
