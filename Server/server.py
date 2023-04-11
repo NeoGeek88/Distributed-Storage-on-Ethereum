@@ -35,11 +35,6 @@ ip_address = args.ip
 domain = args.domain
 config_path = args.config
 
-"""
-    TODO:
-    1. FETCH INFO FROM SMARTCONTRACT                            0326-0327   FINISHED
-    2. IMPLEMENT FILE RECOVERY and PERIODICAL INTEGRITY CHECK   0328-0330   PENDING
-"""
 
 chunk_db_path = "chunks.db"
 log_db_path = "logs.db"
@@ -239,9 +234,6 @@ def save_chunk():
     chunk_db_conn = connect_to_chunk_db()
     add_chunk(chunk_db_conn, chunk_id, chunk_data).close()
 
-    with open(os.path.join(chunk_path, chunk_id), "wb") as f:
-        f.write(base64.b64decode(chunk_data))
-
     log(
         log_db_conn,
         f"chunk {chunk_id} is successfully uploaded",
@@ -302,17 +294,6 @@ def delete_chunk(id):
 
     return f"Chunk {id} does not exist.", 404
 
-
-# @app.route("/chunk/<hash>/remove", methods=["GET"])
-# def delete_chunk(hash):
-# chunk_db_conn = connect_to_chunk_db()
-# log_conn = connect_to_log_db()
-
-# remove_chunk(chunk_db_conn, hash)
-# log()
-
-# return f"Chunk {hash} has been removed.", 200
-
 def chunk_hash(_bytes):
     w3 = Web3(EthereumTesterProvider)
     hash_hex = w3.solidity_keccak(["bytes"], [_bytes])
@@ -329,14 +310,6 @@ def check_chunk(id):
     # chunk is not found
     if chunk is None:
         return f"chunk {id} is not found.", 404
-
-    ## chunk is not verified
-    # elif chunk[4] == 0:
-    # return f"chunk {hash} is not verified.", 200
-
-    ## chunk is removed
-    # elif chunk[5] == 0:
-    # return f"chunk {hash} is removed.", 200
 
     response = {
         "verified": chunk[4],
