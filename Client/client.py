@@ -240,7 +240,7 @@ class Client:
         self.new_file_handler = FileHandler(self.wallet_public_address, f'0x{self.wallet_private_key}')
 
         # Define the interval between verification checks (in seconds)
-        interval = 3600
+        interval = 60
 
         while True:
             # Wait for the specified interval
@@ -384,9 +384,6 @@ class Client:
     '''
     Purpose: Upload the file and related information to the server and smart contract 
              after the user selects 'upload' to upload and enters the file path.
-    #TODO: Modify the URL to upload to the server after Jianing provides the API.
-            YOYO may not require a file path in the future, but instead require the actual file.
-            Async features: pass to the server, smart contract 
     '''
     def upload_file(self):
         # Pass wallet public address and private key to File Handler
