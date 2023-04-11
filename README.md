@@ -125,10 +125,14 @@ python3 server.py -H 127.0.0.1 -d localhost -p 3000 -c ./config.json
 We provide two `.env` files that contains ethereum key pair for testers, you can search Sepolia Faucet to acquire test Ethereums.
 
 ```
-
+INFURA_NODE_ENDPOINT="https://sepolia.infura.io/v3/325c2e4f72b743a99bf8325760da19c5"
+CONTRACT_ADDRESS=0xe3dA92C7a4362139a771947Ae14c13E75012F5aC
+WALLET_PUBLIC_ADDRESS=0x6aFF5ba6cA7f9a4976bCb7c0FF543478558379A3
+WALLET_PRIVATE_KEY=4bee1fc1c3f0d3f643004b5b556779890c3cbfff36d15ee9369ae0ddda11a2e7
 ```
 
 ```
+
 ```
 
 
