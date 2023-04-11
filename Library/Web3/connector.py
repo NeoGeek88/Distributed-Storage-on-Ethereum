@@ -1,3 +1,6 @@
+import sys
+sys.path.append('../Library/Web3/')
+sys.path.append('../Library/Crypto/')
 from web3 import Web3
 from eth_account import Account
 from eth_account.messages import encode_defunct
@@ -5,19 +8,18 @@ from dotenv import load_dotenv
 from uuid import UUID
 import os
 import json
-#from MerkleTree import MerkleTree
 
 class Connector:
 	def __init__(self):
 		# Load the environment variables from the .env file.
 		# TODO: might not need .env in the future i guesss
-		load_dotenv("C:\\Users\\lasti\\PycharmProjects\\Distributed-Storage-on-Ethereum\\.env")
+		load_dotenv("../.env")
 
 		# Connect to the Ethereum blockchain via remote node provider.
 		self.w3 = Web3(Web3.HTTPProvider(os.getenv("INFURA_NODE_ENDPOINT")))
 
 		# Load the contract ABI and contract address.
-		with open('C:\\Users\\lasti\\PycharmProjects\\Distributed-Storage-on-Ethereum\\Contract\\contract_abi.json', 'r') as f:
+		with open('../../Contract/contract_abi.json', 'r') as f:
 			contract_abi = json.load(f)
 		
 		contract_address = os.getenv("CONTRACT_ADDRESS")
