@@ -297,14 +297,18 @@ class FileHandler:
        
         received_data = b''.join(data_chunks)
 
+        padded_file_size = self.chunk_size * (int(file_size / self.chunk_size) + (1 if (file_size % self.chunk_size) != 0 else 0))
+        data_length = int(padded_file_size / databyte) * 255 + (padded_file_size % databyte) + eccbyte
+        processed_data_length = (int(len(data_length)/255)+1) * 255
+
+        received_data = received_data[:processed_data_length]
+
         received_data_processed = []
         for j in range(int(len(received_data)/255)+1):
             for i in range(255):
                 if j+i*int(len(received_data)/255) < len(received_data):
                     received_data_processed.append(received_data[j+i*int(len(received_data)/255)])
 
-        padded_file_size = self.chunk_size * (int(file_size / self.chunk_size) + (1 if (file_size % self.chunk_size) != 0 else 0))
-        data_length = int(padded_file_size / databyte) * 255 + (padded_file_size % databyte) + eccbyte
         recovered_data = rs.decode(bytearray(received_data_processed[:data_length]))
 
         recovered_data = bytes(recovered_data[0])
