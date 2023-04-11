@@ -392,9 +392,6 @@ class FileHandler:
         return rs_data_list
 
 
-
-    
-
 # ##---------------- neo given
 # public_addr_1 = "0xD4cdE7b7480CC3228D3725FB1b8D8d4226267bA3"
 # private_key_1 = "0x7004f17e0cab05642f36e8ddb30b778c4ba5b6d2bc2a17338aaff3b26c55e241"

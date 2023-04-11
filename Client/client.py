@@ -942,7 +942,7 @@ class Client:
         receiver_share_public_key = inquirer.text(message="Please enter the receiver's public key")
 
         # Get the receiver's public address
-        receiver_eth_public_address = self.new_file_handler.gen_eth_public_address(receiver_share_public_key)
+        receiver_eth_public_address = self.new_file_handler.gen_eth_public_address(int(receiver_share_public_key, 16))
 
         # Update the File_Handler object
         self.new_file_handler(self.wallet_public_address, f'0x{self.wallet_private_key}',
