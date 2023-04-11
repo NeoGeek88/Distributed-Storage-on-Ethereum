@@ -18,14 +18,8 @@ import random
 
 class Client:
     def __init__(self):
-        self.url = "https://"
-        # save aes key file
-        # self.aes_key_file = 'aes_key.json'
         self.connector = Connector()
         self.merkletree = MerkleTree()
-        # self.testUrl = "http://127.0.0.3:5000"
-        # self.testUrl_server = "http://localhost:3000/chunk"
-        self.testUrl_verify = "http://localhost:3000/chunk/verify"
         INFURA_NODE_ENDPOINT = ""
         CONTRACT_ADDRESS = ""
         WALLET_PUBLIC_ADDRESS = ""
@@ -183,7 +177,7 @@ class Client:
 
         for node in nodes_info:
             # Remove the failed chunk
-            response = requests.get(f"http://{node['ip_address']}:{node['port']}/chunk/{node['chunkId']}"
+            response = requests.delete(f"http://{node['ip_address']}:{node['port']}/chunk/{node['chunkId']}"
                                     f"/remove")
             if response.status_code != 200:
                 print(f"Failed to remove chunk {node['chunkId']}")
@@ -357,7 +351,7 @@ class Client:
                     print("Failed to upload recovered chunk")
 
                 # Remove the failed chunk
-                response = requests.get(f"http://{selected_node_ip}:{selected_node_port}/chunk/{selected_chunk_id}"
+                response = requests.delete(f"http://{selected_node_ip}:{selected_node_port}/chunk/{selected_chunk_id}"
                                         f"/remove")
                 if response == 200:
                     print("Remove failed chunk successfully")

@@ -165,6 +165,20 @@ def get_chunk(conn, chunk_hash):
     return chunk
 
 
+def get_chunk_no_verify_check(conn, chunk_hash):
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT * FROM chunks WHERE chunkHash=? LIMIT 1", (chunk_hash,)
+    )
+
+    chunk = cursor.fetchone()
+
+    cursor.close()
+
+    return chunk
+
+
 def get_unverified_chunks(conn):
     cursor = conn.cursor()
     cursor.execute(
@@ -272,13 +286,13 @@ def download_chunk(id):
         return response, 200
 
 
-@app.route("/chunk/<id>/remove", methods=["GET"])
+@app.route("/chunk/<id>/remove", methods=["DELETE"])
 def delete_chunk(id):
     chunk_db_conn = connect_to_chunk_db()
 
     log_conn = connect_to_log_db()
 
-    chunk = get_chunk(chunk_db_conn, id)
+    chunk = get_chunk_no_verify_check(chunk_db_conn, id)
 
     if chunk:
         remove_chunk(chunk_db_conn, id)
