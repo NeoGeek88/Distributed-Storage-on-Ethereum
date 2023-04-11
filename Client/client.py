@@ -246,7 +246,7 @@ class Client:
         self.new_file_handler = FileHandler(self.wallet_public_address, f'0x{self.wallet_private_key}')
 
         # Define the interval between verification checks (in seconds)
-        interval = 1
+        interval = 3600
 
         while True:
             # Wait for the specified interval
@@ -695,12 +695,11 @@ class Client:
         receiver_share_public_key = inquirer.text(message="Please enter the receiver's public key")
 
         # Get the receiver's public address
-        receiver_eth_public_address = self.new_file_handler.gen_eth_public_address(int(receiver_share_public_key, 16))
+        receiver_eth_public_address = self.new_file_handler.gen_eth_public_address(bytes.fromhex(receiver_share_public_key[2:]))
 
         # Update the File_Handler object
-        self.new_file_handler(self.wallet_public_address, f'0x{self.wallet_private_key}',
-                              share_public_key=receiver_share_public_key)
-
+        self.new_file_handler = FileHandler(self.wallet_public_address, f'0x{self.wallet_private_key}',
+                              shared_public_key=receiver_share_public_key)
         # Split, Encrypt, Encode the file
         chunk_list = self.new_file_handler.uploader_helper(data)
 
