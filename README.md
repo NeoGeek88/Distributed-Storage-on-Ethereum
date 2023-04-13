@@ -2,7 +2,7 @@
 ### Setup
 #### Smart Contract
 
-Our existing Smart Contract deployed on the Sepolia testnet is at https://sepolia.etherscan.io/address/0x89c509099abc732b2023889f8affabf30c60bb6b
+Our existing Smart Contract deployed on the Sepolia testnet is at https://sepolia.etherscan.io/address/0xe3da92c7a4362139a771947ae14c13e75012f5ac
 
 Or you can use 4 `.sol` files inside the Contract folder to deploy a Smart Contract by your self.
 
@@ -39,7 +39,7 @@ The following libraries are required to run the Client software:
 
 ##### Connecting to the nodes:
 
-The Client software communicates with the nodes using HTTP requests. To connect to the nodes, the Client software requires the IP address and port number of each node.  (may need chunk id in the future?)
+The Client software communicates with the nodes using HTTP requests. To connect to the nodes, the Client software requires the IP address and port number of each node.
 
 To set up the Client software, follow these steps:
 
